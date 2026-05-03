@@ -14,21 +14,41 @@
 go get apigo.cc/go/log
 ```
 
-## 快速开始
-```go
-import "apigo.cc/go/log"
+## 标准化日志 API
 
-func main() {
-    // 使用默认 Logger
-    log.Info("server started", "port", 8080)
-    
-    // 创建带 traceId 的子 Logger
-    logger := log.New("unique-trace-id")
-    logger.Info("request processed")
-    
-    // 错误日志带堆栈
-    logger.Error("database failed", "db", "mysql")
+除了基础的 `Debug`, `Info`, `Warning`, `Error` 外，`go/log` 还提供了一系列针对特定场景优化的标准化日志 API：
+
+### 数据库日志 (DB)
+自动处理耗时计算、脱敏及错误堆栈捕获。
+```go
+// 记录正常 SQL
+logger.DB("mysql", dsn, "SELECT * FROM users WHERE id=?", []any{1}, 10.5)
+
+// 记录带错误的 SQL (自动捕获调用栈并设为 dbError 类型)
+logger.DB("mysql", dsn, "SELECT...", args, usedTime, "table not found")
+```
+
+### 请求日志 (Request)
+针对高性能 HTTP 服务设计的结构化日志。
+```go
+req := &log.RequestLog{
+    Method: "GET",
+    Path: "/api/user",
+    // ... 填充其他字段
 }
+logger.Request(req)
+```
+
+### 任务与监控 (Task / Monitor / Statistic)
+```go
+// 任务执行日志
+logger.Task("CleanCache", 150.2, true, "Success")
+
+// 监控告警日志
+logger.Monitor("CPU", 1, "Load too high")
+
+// 业务指标统计
+logger.Statistic("Business", "OrderCount", 100)
 ```
 
 ## 配置项 (JSON/YAML)

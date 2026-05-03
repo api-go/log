@@ -308,3 +308,38 @@ func (logger *Logger) fillBase(base *BaseLog, logType string) {
 	base.ServerName = serverName
 	base.ServerIp = serverIp
 }
+
+func (logger *Logger) DB(dbType, dsn, query string, args []any, usedTime float32, errStr ...string) {
+	logType := LogTypeDb
+	level := INFO
+	var e string
+	if len(errStr) > 0 && errStr[0] != "" {
+		logType = LogTypeDbError
+		level = ERROR
+		e = errStr[0]
+	}
+
+	if logger.CheckLevel(level) {
+		entry := GetEntry(reflect.TypeOf(&DBLog{})).(*DBLog)
+		logger.fillBase(entry.Base(), logType)
+		entry.DbType = dbType
+		entry.Dsn = dsn
+		entry.Query = query
+		entry.QueryArgs = cast.MustToJSON(args)
+		entry.UsedTime = usedTime
+		if e != "" {
+			entry.Error = e
+			entry.CallStacks = getCallStacks(logger.truncations)
+		}
+		logger.Log(entry)
+	}
+}
+
+func (logger *Logger) DBError(errStr, dbType, dsn, query string, args []any, usedTime float32) {
+	logger.DB(dbType, dsn, query, args, usedTime, errStr)
+}
+
+func (logger *Logger) Request(entry *RequestLog) {
+	logger.fillBase(entry.Base(), LogTypeRequest)
+	logger.Log(entry)
+}

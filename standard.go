@@ -110,11 +110,13 @@ func (e *ErrorLog) Base() *BaseLog {
 
 type DBLog struct {
 	BaseLog
-	DbType    string
-	Dsn       string
-	Query     string
-	QueryArgs string
-	UsedTime  float32
+	DbType     string
+	Dsn        string
+	Query      string
+	QueryArgs  string
+	UsedTime   float32
+	Error      string
+	CallStacks []string
 }
 
 func (d *DBLog) Reset() {
@@ -124,6 +126,8 @@ func (d *DBLog) Reset() {
 	d.Query = ""
 	d.QueryArgs = ""
 	d.UsedTime = 0
+	d.Error = ""
+	d.CallStacks = d.CallStacks[:0]
 }
 
 func (d *DBLog) Base() *BaseLog {

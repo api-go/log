@@ -138,13 +138,21 @@ func getCallStacks(truncations []string) []string {
 		if strings.Contains(file, "/go/src/") {
 			continue
 		}
-		if strings.Contains(file, "/log/") { // 注意这里的路径匹配，迁移后是 /log/
+		// 只有在 logger.go, extra.go 等核心实现文件中的帧才被认为是 "inLogger"
+		// 这样可以保留测试文件 (xxx_test.go) 的调用栈
+		isLogInternal := (strings.Contains(file, "/log/logger.go") ||
+			strings.Contains(file, "/log/utility.go") ||
+			strings.Contains(file, "/log/standard.go") ||
+			strings.Contains(file, "/log/extra.go"))
+
+		if isLogInternal {
 			if inLogger {
 				continue
 			}
 		} else {
 			inLogger = false
 		}
+
 		if truncations != nil {
 			for _, truncation := range truncations {
 				if pos := strings.Index(file, truncation); pos != -1 {
