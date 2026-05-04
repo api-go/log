@@ -12,20 +12,10 @@ type MockRequestLog struct {
 	UsedTime  float32
 }
 
-func (m *MockRequestLog) Reset() {
-	m.BaseLog.Reset()
-	m.RequestId = ""
-	m.UsedTime = 0
-}
-
-func (m *MockRequestLog) Base() *BaseLog {
-	return &m.BaseLog
-}
-
 func TestWithEntry(t *testing.T) {
 	typ := reflect.TypeOf(&MockRequestLog{})
 
-	WithEntry(typ, func(e LogEntry) {
+	WithEntry(typ, func(e any) {
 		entry := e.(*MockRequestLog)
 		entry.RequestId = "with-entry-id"
 	})

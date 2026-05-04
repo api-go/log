@@ -33,7 +33,7 @@ func BenchmarkLogger_RequestLog_Realistic(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		WithEntry(typ, func(e LogEntry) {
+		WithEntry(typ, func(e any) {
 			entry := e.(*RequestLog)
 			entry.RequestId = "req-1234567890"
 			entry.UsedTime = 45.67
@@ -41,15 +41,9 @@ func BenchmarkLogger_RequestLog_Realistic(b *testing.B) {
 			entry.Method = "POST"
 			entry.ResponseCode = 200
 
-			if entry.RequestHeaders == nil {
-				entry.RequestHeaders = make(map[string]string)
-			}
 			entry.RequestHeaders["Content-Type"] = "application/json"
 			entry.RequestHeaders["Authorization"] = "Bearer token-value"
 
-			if entry.RequestData == nil {
-				entry.RequestData = make(map[string]any)
-			}
 			entry.RequestData["userId"] = 10086
 			entry.RequestData["action"] = "update_profile"
 

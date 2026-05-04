@@ -4,51 +4,62 @@
 
 ## 特性
 - **零摩擦**: 自动从环境变量获取应用名、IP 等信息。
-- **高性能**: 异步写入，支持批量刷盘。
+- **高性能**: 异步写入，支持对象池化与批量刷盘。
+- **自动化**: 自定义日志类型只需嵌入 `BaseLog`，无需手动实现重置逻辑。
 - **脱敏支持**: 内置敏感字段过滤与正则匹配脱敏。
 - **多渠道**: 支持控制台、本地文件切分、Elasticsearch 批量写入。
-- **现代化**: 深度集成 `apigo.cc/go` 基础库。
 
 ## 安装
 ```bash
 go get apigo.cc/go/log
 ```
 
-## 标准化日志 API
+## 基础 API
+所有日志方法均支持变长额外参数，自动通过 `cast.ToMap` 转换为键值对存入 `Extra` 字段。
+```go
+logger.Info("用户登录", "userId", 10086, "ip", "1.2.3.4")
+logger.Error("数据库连接失败", "db", "mysql", "err", err)
+```
 
-除了基础的 `Debug`, `Info`, `Warning`, `Error` 外，`go/log` 还提供了一系列针对特定场景优化的标准化日志 API：
+## 扩展日志 API
 
 ### 数据库日志 (DB)
 自动处理耗时计算、脱敏及错误堆栈捕获。
 ```go
 // 记录正常 SQL
-logger.DB("mysql", dsn, "SELECT * FROM users WHERE id=?", []any{1}, 10.5)
+logger.DB("mysql", dsn, "SELECT * FROM users WHERE id=?", []any{1}, 10.5, nil)
 
 // 记录带错误的 SQL (自动捕获调用栈并设为 dbError 类型)
-logger.DB("mysql", dsn, "SELECT...", args, usedTime, "table not found")
-```
-
-### 请求日志 (Request)
-针对高性能 HTTP 服务设计的结构化日志。
-```go
-req := &log.RequestLog{
-    Method: "GET",
-    Path: "/api/user",
-    // ... 填充其他字段
-}
-logger.Request(req)
+logger.DB("mysql", dsn, "SELECT...", args, usedTime, err, "k1", "v1")
 ```
 
 ### 任务与监控 (Task / Monitor / Statistic)
 ```go
-// 任务执行日志
-logger.Task("CleanCache", 150.2, true, "Success")
+// 任务执行日志 (任务名, 耗时ms, 是否成功, 消息, 额外参数...)
+logger.Task("CleanCache", 150.2, true, "Success", "deleted", 100)
 
-// 监控告警日志
-logger.Monitor("CPU", 1, "Load too high")
+// 监控告警日志 (目标, 状态码, 消息, 额外参数...)
+logger.Monitor("CPU", 1, "Load too high", "usage", "95%")
 
-// 业务指标统计
-logger.Statistic("Business", "OrderCount", 100)
+// 业务指标统计 (类别, 项目, 数值, 额外参数...)
+logger.Statistic("Business", "OrderCount", 100, "region", "cn")
+```
+
+### 自定义日志类型
+只需嵌入 `BaseLog` 即可利用对象池和自动重置功能。
+```go
+type MyBusinessLog struct {
+    log.BaseLog
+    OrderId string
+    Amount  float64
+}
+
+// 使用方式
+entry := log.GetEntry(reflect.TypeOf(&MyBusinessLog{})).(*MyBusinessLog)
+logger.fillBase(entry, "business")
+entry.OrderId = "O123"
+entry.Amount = 99.8
+logger.Log(entry)
 ```
 
 ## 配置项 (JSON/YAML)

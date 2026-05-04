@@ -1,19 +1,27 @@
-# Log Performance Test
+# 日志性能测试报告
 
-## Test Environment
-- OS: darwin
-- Arch: amd64
+## 测试环境
+- 操作系统: darwin
+- 架构: amd64
 - CPU: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
 
-## Benchmark Results (v1.0.1)
+## 基准测试结果 (v1.0.2)
 
-| Benchmark | Iterations | ns/op | B/op | allocs/op |
+| 测试用例 | 迭代次数 | 耗时 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | :--- | :--- | :--- | :--- | :--- |
-| `BenchmarkLogger_RequestLog_Realistic` | 4,937,952 | 270.2 | 72 | 2 |
-| `BenchmarkLoggerInfo` | 108,744 | 9,699 | - | - |
-| `BenchmarkLoggerAsyncConcurrent` | 121,032 | 8,891 | - | - |
+| `BenchmarkLogger_RequestLog_Realistic` | 2,434,633 | 475.7 | 72 | 2 |
+| `BenchmarkLoggerInfo` | 113,421 | 9,857 | - | - |
+| `BenchmarkLoggerAsyncConcurrent` | 124,932 | 8,262 | - | - |
 
-## Summary
-- **RequestLog Performance**: High-performance structured logging with minimal allocations.
-- **Async Efficiency**: Concurrent logging remains stable and efficient.
-- **Object Pooling**: Effective use of `sync.Pool` for `LogEntry` objects reduces GC pressure.
+## 版本对比评估
+
+| 版本 | 机制 | 耗时 (ns/op) | 易用性 |
+| :--- | :--- | :--- | :--- |
+| **v1.0.1** | 手动 Reset | ~270 | 较低 (需编写大量样板代码) |
+| **v1.0.2** | 自动化 Reset | ~475 | 极高 (嵌入 BaseLog 即可) |
+
+## 总结
+- **性能评估**: 引入自动化重置机制后，单次日志操作耗时增加了约 200ns。这主要是反射探测和函数缓存调用的开销。但在高性能生产环境中，亚微秒（< 1μs）级的延迟依然极其优秀。
+- **内存效率**: 内存分配保持在极低水平 (72B, 2次分配)，说明对象池和 `reflect.Value.Clear()` 机制有效地控制了 GC 压力。
+- **开发体验**: 开发者现在只需通过嵌入 `BaseLog` 即可创建自定义日志类型，不再需要手动编写冗长的 `Reset()` 和 `Base()` 方法。
+- **优化点**: 采用了字段重置函数缓存，避免了每次日志记录都进行深度的反射解析。

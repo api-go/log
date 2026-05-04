@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -32,13 +33,13 @@ func TestDBLog(t *testing.T) {
 	})
 
 	// 测试普通 DB 日志
-	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5)
+	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, nil)
 
-	// 测试 DB 错误日志
-	logger.DBError("connection lost", "mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5)
+	// 测试 DB 错误日志 (通过传递 error 对象)
+	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, fmt.Errorf("connection lost"))
 
-	// 测试合并后的 DB 方法带错误
-	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, "another error")
+	// 测试带额外参数的 DB 日志
+	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, nil, "k1", "v1")
 }
 
 func TestRequestLog(t *testing.T) {

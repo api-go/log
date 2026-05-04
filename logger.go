@@ -162,8 +162,8 @@ func NewLogger(conf Config) *Logger {
 }
 
 func (logger *Logger) Log(data any) {
-	if entry, ok := data.(LogEntry); ok {
-		logger.asyncWrite(entry)
+	if entry, ok := data.(LogEntry); ok && entry.IsLogEntry() {
+		logger.asyncWrite(data)
 		return
 	}
 
@@ -171,16 +171,16 @@ func (logger *Logger) Log(data any) {
 
 	if err != nil {
 		buf, _ = logger.formatter.Format(map[string]any{
-			"logType":   LogTypeUndefined,
-			"traceId":   logger.traceId,
-			"undefined": fmt.Sprint(data),
+			"logType": LogTypeUndefined,
+			"traceId": logger.traceId,
+			"message": cast.String(data),
 		}, nil)
 	}
 
 	logger.writeBuf(buf)
 }
 
-func (logger *Logger) asyncWrite(entry LogEntry) {
+func (logger *Logger) asyncWrite(entry any) {
 	buf, err := logger.formatter.Format(entry, logger.sensitiveKeys)
 
 	if err == nil {
@@ -206,17 +206,42 @@ func (logger *Logger) writeBuf(buf []byte) {
 	}
 }
 
+func (logger *Logger) fillBase(entry any, logType string) {
+	var base *BaseLog
+	rv := reflect.ValueOf(entry)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		f := rv.FieldByName("BaseLog")
+		if f.IsValid() && f.CanAddr() {
+			if b, ok := f.Addr().Interface().(*BaseLog); ok {
+				base = b
+			}
+		}
+	}
+
+	if base == nil {
+		return
+	}
+
+	base.LogName = logger.config.Name
+	base.LogType = logType
+	base.LogTime = MakeLogTime(time.Now())
+	base.TraceId = logger.traceId
+	base.ImageName = dockerImageName
+	base.ImageTag = dockerImageTag
+	base.ServerName = serverName
+	base.ServerIp = serverIp
+}
+
 func (logger *Logger) Debug(message string, extra ...any) {
 	if logger.CheckLevel(DEBUG) {
 		entry := GetEntry(reflect.TypeOf(&DebugLog{})).(*DebugLog)
-		logger.fillBase(entry.Base(), LogTypeDebug)
+		logger.fillBase(entry, LogTypeDebug)
 		entry.Debug = message
 		if len(extra) > 0 {
-			for i := 0; i < len(extra); i += 2 {
-				if i+1 < len(extra) {
-					entry.Extra[cast.String(extra[i])] = extra[i+1]
-				}
-			}
+			cast.ToMap(entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -225,14 +250,10 @@ func (logger *Logger) Debug(message string, extra ...any) {
 func (logger *Logger) Info(message string, extra ...any) {
 	if logger.CheckLevel(INFO) {
 		entry := GetEntry(reflect.TypeOf(&InfoLog{})).(*InfoLog)
-		logger.fillBase(entry.Base(), LogTypeInfo)
+		logger.fillBase(entry, LogTypeInfo)
 		entry.Info = message
 		if len(extra) > 0 {
-			for i := 0; i < len(extra); i += 2 {
-				if i+1 < len(extra) {
-					entry.Extra[cast.String(extra[i])] = extra[i+1]
-				}
-			}
+			cast.ToMap(entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -241,15 +262,11 @@ func (logger *Logger) Info(message string, extra ...any) {
 func (logger *Logger) Warning(message string, extra ...any) {
 	if logger.CheckLevel(WARNING) {
 		entry := GetEntry(reflect.TypeOf(&WarningLog{})).(*WarningLog)
-		logger.fillBase(entry.Base(), LogTypeWarning)
+		logger.fillBase(entry, LogTypeWarning)
 		entry.Warning = message
 		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
-			for i := 0; i < len(extra); i += 2 {
-				if i+1 < len(extra) {
-					entry.Extra[cast.String(extra[i])] = extra[i+1]
-				}
-			}
+			cast.ToMap(entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -258,15 +275,11 @@ func (logger *Logger) Warning(message string, extra ...any) {
 func (logger *Logger) Error(message string, extra ...any) {
 	if logger.CheckLevel(ERROR) {
 		entry := GetEntry(reflect.TypeOf(&ErrorLog{})).(*ErrorLog)
-		logger.fillBase(entry.Base(), LogTypeError)
+		logger.fillBase(entry, LogTypeError)
 		entry.Error = message
 		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
-			for i := 0; i < len(extra); i += 2 {
-				if i+1 < len(extra) {
-					entry.Extra[cast.String(extra[i])] = extra[i+1]
-				}
-			}
+			cast.ToMap(entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -296,50 +309,4 @@ func (logger *Logger) CheckLevel(logLevel LevelType) bool {
 		settedLevel = INFO
 	}
 	return logLevel >= settedLevel
-}
-
-func (logger *Logger) fillBase(base *BaseLog, logType string) {
-	base.LogName = logger.config.Name
-	base.LogType = logType
-	base.LogTime = MakeLogTime(time.Now())
-	base.TraceId = logger.traceId
-	base.ImageName = dockerImageName
-	base.ImageTag = dockerImageTag
-	base.ServerName = serverName
-	base.ServerIp = serverIp
-}
-
-func (logger *Logger) DB(dbType, dsn, query string, args []any, usedTime float32, errStr ...string) {
-	logType := LogTypeDb
-	level := INFO
-	var e string
-	if len(errStr) > 0 && errStr[0] != "" {
-		logType = LogTypeDbError
-		level = ERROR
-		e = errStr[0]
-	}
-
-	if logger.CheckLevel(level) {
-		entry := GetEntry(reflect.TypeOf(&DBLog{})).(*DBLog)
-		logger.fillBase(entry.Base(), logType)
-		entry.DbType = dbType
-		entry.Dsn = dsn
-		entry.Query = query
-		entry.QueryArgs = cast.MustToJSON(args)
-		entry.UsedTime = usedTime
-		if e != "" {
-			entry.Error = e
-			entry.CallStacks = getCallStacks(logger.truncations)
-		}
-		logger.Log(entry)
-	}
-}
-
-func (logger *Logger) DBError(errStr, dbType, dsn, query string, args []any, usedTime float32) {
-	logger.DB(dbType, dsn, query, args, usedTime, errStr)
-}
-
-func (logger *Logger) Request(entry *RequestLog) {
-	logger.fillBase(entry.Base(), LogTypeRequest)
-	logger.Log(entry)
 }
