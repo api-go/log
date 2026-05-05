@@ -10,9 +10,9 @@ import (
 )
 
 func TestSplitTag(t *testing.T) {
-	logFile := "test_split.log"
-	// 使用每分钟切分的标签，方便测试 (当然实际可能需要模拟时间，但这里我们可以直接写然后检查文件名)
-	splitTag := ".200601021504" 
+	logFile := "test_rotate.log"
+	// 使用每秒切分的标签，方便测试文件轮转
+	splitTag := ".20060102150405" 
 	
 	conf := log.Config{
 		Name:     "test-split",
@@ -22,20 +22,34 @@ func TestSplitTag(t *testing.T) {
 	}
 	logger := log.NewLogger(conf)
 	
-	logger.Info("split test message")
+	// 1. 记录第一条日志
+	logger.Info("first message")
+	time.Sleep(300 * time.Millisecond) // 等待异步写入
+	expectedFile1 := logFile + "." + time.Now().Format(splitTag)
 	
-	// 给异步写入一点时间
-	time.Sleep(300 * time.Millisecond)
-	
-	// 预期文件名
-	expectedFile := logFile + "." + time.Now().Format(splitTag)
-	
-	if _, err := os.Stat(expectedFile); os.IsNotExist(err) {
-		t.Errorf("Expected log file %s does not exist", expectedFile)
-	} else {
-		// 清理
-		os.Remove(expectedFile)
+	if _, err := os.Stat(expectedFile1); os.IsNotExist(err) {
+		t.Fatalf("First log file %s does not exist", expectedFile1)
 	}
+
+	// 2. 等待跨秒
+	time.Sleep(1100 * time.Millisecond)
+	
+	// 3. 记录第二条日志，触发轮转
+	logger.Info("second message")
+	time.Sleep(300 * time.Millisecond) // 等待异步写入
+	expectedFile2 := logFile + "." + time.Now().Format(splitTag)
+	
+	if expectedFile1 == expectedFile2 {
+		t.Errorf("Files should be different for rotation, but both are %s", expectedFile1)
+	}
+
+	if _, err := os.Stat(expectedFile2); os.IsNotExist(err) {
+		t.Errorf("Second log file %s does not exist after rotation", expectedFile2)
+	}
+
+	// 清理
+	os.Remove(expectedFile1)
+	os.Remove(expectedFile2)
 }
 
 func TestSensitiveDetailed(t *testing.T) {

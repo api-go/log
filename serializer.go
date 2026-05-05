@@ -128,7 +128,7 @@ func writeValue(buf *bytes.Buffer, v reflect.Value, fieldName string, sensitiveK
 		fixedName := fixField(fieldName)
 		for _, sk := range sensitiveKeys {
 			if sk == fixedName {
-				buf.WriteString(`"******"`)
+				buf.WriteString(`"***"`)
 				return
 			}
 		}
