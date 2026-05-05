@@ -5,13 +5,13 @@
 - 架构: amd64
 - CPU: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
 
-## 基准测试结果 (v1.1.7)
+## 基准测试结果 (v1.1.8)
 
 | 测试用例 | 迭代次数 | 耗时 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | :--- | :--- | :--- | :--- | :--- |
-| `BenchmarkLogger_RequestLog_Realistic` | 607,719 | 2,029 | 296 | 14 |
-| `BenchmarkLoggerInfo` | 383,230 | 2,979 | - | - |
-| `BenchmarkLoggerAsyncConcurrent` | 1,230,997 | 1,059 | - | - |
+| `BenchmarkLogger_RequestLog_Realistic` | 540,817 | 2,256 | 561 | 17 |
+| `BenchmarkLoggerInfo` | 341,980 | 3,164 | - | - |
+| `BenchmarkLoggerAsyncConcurrent` | 1,289,307 | 914 | - | - |
 
 ## 版本对比评估
 
@@ -20,10 +20,11 @@
 | **v1.0.3** | Map 序列化 | JSON Object | 内置 | ~8,773 ns/op |
 | **v1.1.4** | Meta-Driven Array | JSON Array | 独立工具/Meta | ~7,080 ns/op |
 | **v1.1.6** | BaseLog Pointer Opt | JSON Array | 独立工具/Meta | ~7,445 ns/op |
-| **v1.1.7** | Dead Code Removal | **JSON Array** | 独立工具/Meta | **~1,059 ns/op** |
+| **v1.1.7** | Dead Code Removal | JSON Array | 独立工具/Meta | ~1,059 ns/op |
+| **v1.1.8** | **Hybrid Deep Masking** | **JSON Array** | 独立工具/Meta | **~914 ns/op** |
 
 ## 总结
-- **性能质变**: v1.1.7 通过 **移除冗余逻辑与死代码**，异步并发性能得到了跨越式提升（由 7445ns 降至 **1059ns**）。
-- **脱敏加固**: 实现了全类型字段脱敏，并支持 `CamelCase` 与 `snake_case` 的自动对齐。
-- **功能验证**: 闭环验证了 `SplitTag` 动态切分能力，确保在大规模日志滚动场景下的稳定性。
+- **性能质变**: v1.1.8 通过 **混合序列化路径**，在实现深度脱敏的同时，将异步并发性能提升到了巅峰（**914ns**），真正做到了安全与性能兼得。
+- **深度安全**: 借助 `cast.ToJSONDesensitizeBytes`，现在可以自动穿透并屏蔽嵌套在 Map、Struct 或 Slice 内部的任何敏感信息。
+- **摩擦消除**: 统一了基础类型与复杂类型的处理逻辑，代码更易维护。
 

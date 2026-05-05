@@ -68,3 +68,46 @@ func TestSensitiveDetailed(t *testing.T) {
 		t.Errorf("Safe data 'hello' should be present in: %s", result)
 	}
 }
+
+func TestDeepDesensitization(t *testing.T) {
+	type Nested struct {
+		Password string
+		Token    string
+	}
+	type DeepLog struct {
+		log.BaseLog
+		Data map[string]any
+		User Nested
+	}
+
+	entry := log.GetEntry[DeepLog]()
+	entry.BaseLog.LogType = "deep"
+	entry.Data = map[string]any{
+		"password": "data_password",
+		"safe":     "data_safe",
+	}
+	entry.User = Nested{
+		Password: "user_password",
+		Token:    "user_token",
+	}
+
+	sensitiveKeys := []string{"password", "token"}
+	buf := log.ToArrayBytes(entry, sensitiveKeys)
+	result := string(buf)
+
+	// Check deep desensitization in map
+	if strings.Contains(result, "data_password") {
+		t.Errorf("Nested map data 'data_password' not masked in: %s", result)
+	}
+	// Check deep desensitization in struct
+	if strings.Contains(result, "user_password") {
+		t.Errorf("Nested struct data 'user_password' not masked in: %s", result)
+	}
+	if strings.Contains(result, "user_token") {
+		t.Errorf("Nested struct data 'user_token' not masked in: %s", result)
+	}
+	if !strings.Contains(result, "data_safe") {
+		t.Errorf("Safe data 'data_safe' should be present in: %s", result)
+	}
+}
+

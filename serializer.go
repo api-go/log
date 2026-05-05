@@ -123,21 +123,15 @@ func writeValue(buf *bytes.Buffer, v reflect.Value, fieldName string, sensitiveK
 		return
 	}
 
-	// Check if this field should be desensitized
-	isSensitive := false
+	// Check if this root field should be desensitized
 	if len(sensitiveKeys) > 0 {
 		fixedName := fixField(fieldName)
 		for _, sk := range sensitiveKeys {
 			if sk == fixedName {
-				isSensitive = true
-				break
+				buf.WriteString(`"******"`)
+				return
 			}
 		}
-	}
-
-	if isSensitive {
-		buf.WriteString(`"******"`)
-		return
 	}
 
 	switch v.Kind() {
@@ -155,41 +149,13 @@ func writeValue(buf *bytes.Buffer, v reflect.Value, fieldName string, sensitiveK
 		} else {
 			buf.WriteString("false")
 		}
-	case reflect.Map:
-		if v.IsNil() || v.Len() == 0 {
-			buf.WriteString("{}")
-			return
-		}
-		// Handle map with cast.ToJSON
-		var b []byte
-		if len(sensitiveKeys) > 0 {
-			b, _ = cast.ToJSONDesensitizeBytes(v.Interface(), sensitiveKeys)
-		} else {
-			b, _ = cast.ToJSONBytes(v.Interface())
-		}
-		if len(b) > 0 {
-			buf.Write(b)
-		} else {
-			buf.WriteString("{}")
-		}
-	case reflect.Slice, reflect.Array:
-		if v.IsNil() || v.Len() == 0 {
-			buf.WriteString("[]")
-			return
-		}
-		b, _ := cast.ToJSONBytes(v.Interface())
-		if len(b) > 0 {
-			buf.Write(b)
-		} else {
-			buf.WriteString("[]")
-		}
 	default:
-		// Fallback for other complex types
-		b, _ := cast.ToJSONBytes(v.Interface())
-		if len(b) > 0 {
-			buf.Write(b)
-		} else {
+		// Use cast for complex types to ensure deep desensitization
+		b, _ := cast.ToJSONDesensitizeBytes(v.Interface(), sensitiveKeys)
+		if len(b) == 0 {
 			buf.WriteString("null")
+		} else {
+			buf.Write(b)
 		}
 	}
 }
