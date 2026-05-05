@@ -135,9 +135,11 @@ func ParseBadLog(line string) *BaseLog {
 	return &baseLog
 }
 
-// fixField 格式化字段名（去横线，小写）
+// fixField 格式化字段名（去横线、下划线，小写）
 func fixField(s string) string {
-	return strings.ToLower(strings.ReplaceAll(s, "-", ""))
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, "_", "")
+	return strings.ToLower(s)
 }
 
 // getCallStacks 获取调用栈

@@ -123,6 +123,23 @@ func writeValue(buf *bytes.Buffer, v reflect.Value, fieldName string, sensitiveK
 		return
 	}
 
+	// Check if this field should be desensitized
+	isSensitive := false
+	if len(sensitiveKeys) > 0 {
+		fixedName := fixField(fieldName)
+		for _, sk := range sensitiveKeys {
+			if sk == fixedName {
+				isSensitive = true
+				break
+			}
+		}
+	}
+
+	if isSensitive {
+		buf.WriteString(`"******"`)
+		return
+	}
+
 	switch v.Kind() {
 	case reflect.String:
 		writeString(buf, v.String())

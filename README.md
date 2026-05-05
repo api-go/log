@@ -86,10 +86,6 @@ func LogBusiness(logger *log.Logger, action, userId string) {
 *   `SplitTag`: 文件切分标识（仅在输出到文件时有效）。
 *   `Truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
 *   `Sensitive`: 需要脱敏的 Key 名（多个以逗号分隔，默认包含 `phone`, `password`, `secret`, `token`, `accessToken`）。
-*   `RegexSensitive`: 正则表达式脱敏规则。
-*   `SensitiveRule`: 脱敏展示规则 (例如 `12:4*4` 表示长度为12时保留前4后4，中间打码)。
-*   `KeepKeyCase`: 是否保持 `Extra` 字段中 Key 的原始大小写。默认一律转换为小写以确保搜索一致性。
-*   `Fast`: (保留字段) 是否开启极速模式。目前已通过架构优化默认实现极速写入。
 
 
 ## 🧪 验证状态

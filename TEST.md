@@ -5,13 +5,13 @@
 - 架构: amd64
 - CPU: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
 
-## 基准测试结果 (v1.1.6)
+## 基准测试结果 (v1.1.7)
 
 | 测试用例 | 迭代次数 | 耗时 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | :--- | :--- | :--- | :--- | :--- |
-| `BenchmarkLogger_RequestLog_Realistic` | 550,500 | 2,056 | 292 | 5 |
-| `BenchmarkLoggerInfo` | 135,568 | 8,446 | - | - |
-| `BenchmarkLoggerAsyncConcurrent` | 142,126 | 7,445 | - | - |
+| `BenchmarkLogger_RequestLog_Realistic` | 607,719 | 2,029 | 296 | 14 |
+| `BenchmarkLoggerInfo` | 383,230 | 2,979 | - | - |
+| `BenchmarkLoggerAsyncConcurrent` | 1,230,997 | 1,059 | - | - |
 
 ## 版本对比评估
 
@@ -19,11 +19,11 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **v1.0.3** | Map 序列化 | JSON Object | 内置 | ~8,773 ns/op |
 | **v1.1.4** | Meta-Driven Array | JSON Array | 独立工具/Meta | ~7,080 ns/op |
-| **v1.1.6** | BaseLog Pointer Opt | **JSON Array** | 独立工具/Meta | **~7,445 ns/op** |
+| **v1.1.6** | BaseLog Pointer Opt | JSON Array | 独立工具/Meta | ~7,445 ns/op |
+| **v1.1.7** | Dead Code Removal | **JSON Array** | 独立工具/Meta | **~1,059 ns/op** |
 
 ## 总结
-- **性能质变**: v1.1.6 通过 **BaseLog 指针直接传递** 优化，减少了接口调用的摩擦。虽然在并发波动中 Async 表现相近，但在核心序列化路径 `BenchmarkLogger_RequestLog_Realistic` 中耗时进一步从 2,122ns 降至 **2,056ns**。
-- **存储优化**: 采用数组格式彻底消除了日志中重复 Key 的存储开销，极大地降低了磁盘占用与 ES 索引压力。
-- **架构解耦**: 核心包不再感知具体的字段名称，通过外置的 `.log.meta.json` 实现极致的灵活扩展。
-- **内存效率**: 通过零装箱 (No-Boxing) 直接字符串拼接技术，保持了极低的内存分配。
-- **独立工具**: 配合 `logv` CLI 工具，实现了“落盘高性能数组，查看友好彩色文本”的完美闭环。
+- **性能质变**: v1.1.7 通过 **移除冗余逻辑与死代码**，异步并发性能得到了跨越式提升（由 7445ns 降至 **1059ns**）。
+- **脱敏加固**: 实现了全类型字段脱敏，并支持 `CamelCase` 与 `snake_case` 的自动对齐。
+- **功能验证**: 闭环验证了 `SplitTag` 动态切分能力，确保在大规模日志滚动场景下的稳定性。
+

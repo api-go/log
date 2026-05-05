@@ -18,7 +18,6 @@ const LogDefaultSensitive = "phone,password,secret,token,accessToken"
 const LogEnvLevel = "LOG_LEVEL"
 const LogEnvFile = "LOG_FILE"
 const LogEnvSensitive = "LOG_SENSITIVE"
-const LogEnvRegexSensitive = "LOG_REGEXSENSITIVE"
 
 // LogEntry 是一个标记接口，用于识别是否为对象池管理的日志对象
 type LogEntry interface {

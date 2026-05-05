@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.7] - 2026-05-05
+- **极致精简与摩擦消除**:
+  - 移除了所有冗余或已弃用的配置项：`Fast`, `KeepKeyCase`, `RegexSensitive`, `SensitiveRule`。
+  - 删除了 `Logger` 中未被使用的 `desensitization` 处理函数及 `SetDesensitization` 方法，进一步收窄 API。
+- **功能增强与修复**:
+  - **脱敏逻辑闭环**: 修复了 `ToArrayBytes` 仅对 Map 字段脱敏的缺陷。现在支持对结构体根层级的敏感字段（如 `String` 类型）进行全量遮蔽。
+  - **标准化命名映射**: 增强 `fixField` 逻辑，同时支持自动忽略下划线 (`_`) 和横线 (`-`)，确保 `SecretKey` (Go) 与 `secret_key` (Config) 能完美匹配。
+- **稳定性保障**:
+  - 新增 `functional_test.go`，闭环验证了 `SplitTag` 文件切分能力与增强后的 `Sensitive` 脱敏逻辑。
+  - 优化 `serializer.go` 内部判断逻辑，基准测试显示性能有显著提升。
+
 ## [1.1.6] - 2026-05-05
 - **性能优化**:
   - 重构 `FillBase` 方法签名，由接收接口 `LogEntry` 改为接收指针 `*BaseLog`。

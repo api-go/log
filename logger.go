@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -12,24 +11,15 @@ import (
 )
 
 type Logger struct {
-	config          Config
-	level           LevelType
-	goLogger        *log.Logger
-	file            *FileWriter
-	writer          Writer
-	truncations     []string
-	sensitive       map[string]bool
-	sensitiveKeys   []string
-	regexSensitive  []*regexp.Regexp
-	sensitiveRule   []sensitiveRuleInfo
-	desensitization func(string) string
-	traceId         string
-}
-
-type sensitiveRuleInfo struct {
-	threshold int
-	leftNum   int
-	rightNum  int
+	config      Config
+	level       LevelType
+	goLogger    *log.Logger
+	file        *FileWriter
+	writer      Writer
+	truncations []string
+	sensitive   map[string]bool
+	sensitiveKeys []string
+	traceId     string
 }
 
 var (
@@ -50,9 +40,6 @@ func NewLogger(conf Config) *Logger {
 	if conf.Sensitive == "" {
 		conf.Sensitive = LogDefaultSensitive
 	}
-	if conf.SensitiveRule == "" {
-		conf.SensitiveRule = "12:4*4, 11:3*4, 7:2*2, 3:1*1, 2:1*0"
-	}
 
 	if conf.Name == "" {
 		conf.Name = GetDefaultName()
@@ -69,37 +56,6 @@ func NewLogger(conf Config) *Logger {
 			f := fixField(v)
 			logger.sensitive[f] = true
 			logger.sensitiveKeys = append(logger.sensitiveKeys, f)
-		}
-	}
-
-	if len(conf.RegexSensitive) > 0 {
-		ss := cast.Split(conf.RegexSensitive, ",")
-		for _, v := range ss {
-			if r, err := regexp.Compile(v); err == nil {
-				logger.regexSensitive = append(logger.regexSensitive, r)
-			}
-		}
-	}
-
-	if len(conf.SensitiveRule) > 0 {
-		ss := cast.Split(conf.SensitiveRule, ",")
-		for _, v := range ss {
-			a1 := strings.SplitN(v, ":", 2)
-			if len(a1) == 2 {
-				a2 := strings.SplitN(a1[1], "*", 3)
-				if len(a2) == 2 {
-					threshold := cast.Int(a1[0])
-					leftNum := cast.Int(a2[0])
-					rightNum := cast.Int(a2[1])
-					if threshold >= 0 && threshold <= 100 && leftNum >= 0 && leftNum <= 100 && rightNum >= 0 && rightNum <= 100 {
-						logger.sensitiveRule = append(logger.sensitiveRule, sensitiveRuleInfo{
-							threshold: threshold,
-							leftNum:   leftNum,
-							rightNum:  rightNum,
-						})
-					}
-				}
-			}
 		}
 	}
 
@@ -282,10 +238,6 @@ func (logger *Logger) Error(message string, extra ...any) {
 
 func (logger *Logger) SetLevel(level LevelType) {
 	logger.level = level
-}
-
-func (logger *Logger) SetDesensitization(f func(v string) string) {
-	logger.desensitization = f
 }
 
 func (logger *Logger) New(traceId string) *Logger {
