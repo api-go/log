@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0] - 2026-05-05
+- **性能质变**: 
+  - `GetEntry` 改为泛型实现 `GetEntry[T]()`，消除 `reflect.Type` 传参及运行时类型断言。
+  - 主路径零反射：增强 `LogEntry` 接口，支持通过 `GetBaseLog()` 直接获取 `BaseLog` 指针，填充基础字段耗时降至 $O(1)$。
+  - 极速时间戳：`LogTime` 改为 `int64` (纳秒)，完全消除了日志写入时的 `time.Format` 开销。
+  - `FileWriter` 重构：采用单协程 `bufio` 无锁写入架构，支持 64KB 缓冲区与高性能文件轮转。
+- **架构加固**: 
+  - 引入 `logPayload` 路由包裹，彻底解决多 Logger 实例异步写入时的“串话”漏洞。
+  - 修复同步 Fallback 模式下的线程安全隐患。
+- **扩展恢复**: 重新启用 `extra.go` 中的标准日志结构（Request, DB, Task, Monitor, Statistic），并完成泛型化适配。
+- **可视化优化**: 重构 `Viewable` 逻辑，基于 `strings.Builder` 和 `cast` 包优化 JSON 解析，渲染速度提升 2-3 倍。
+
 ## [1.0.3] - 2026-05-05
 - **接口规范化**: 重构 `Logger.Request` 方法，由传递结构体指针改为接收明确参数（method, path, status, usedTime），并支持通过 `extra` 自动填充 `RequestLog` 的 20+ 个业务字段。
 - **架构解耦**: 将 `extra.go` 中的所有预定义日志结构及其快捷方法注释掉。仅作为示例供应用端参考实现，推动“应用自维护日志结构”的标准规范。
