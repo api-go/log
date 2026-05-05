@@ -3,10 +3,10 @@ package log
 import (
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
+	"apigo.cc/go/cast"
 	"apigo.cc/go/file"
 )
 
@@ -163,7 +163,7 @@ func flattenStructFields(t reflect.Type, result *[]reflect.StructField, parentIn
 			for _, part := range parts {
 				kv := strings.SplitN(part, ":", 2)
 				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "pos" {
-					if p, err := strconv.Atoi(strings.TrimSpace(kv[1])); err == nil {
+					if p := cast.To[int](strings.TrimSpace(kv[1])); p > 0 {
 						pos = p
 					}
 				}

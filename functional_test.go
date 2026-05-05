@@ -1,11 +1,11 @@
 package log_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"apigo.cc/go/file"
 	"apigo.cc/go/log"
 )
 
@@ -23,33 +23,42 @@ func TestSplitTag(t *testing.T) {
 	logger := log.NewLogger(conf)
 	
 	// 1. 记录第一条日志
+	t1 := time.Now()
 	logger.Info("first message")
 	time.Sleep(300 * time.Millisecond) // 等待异步写入
-	expectedFile1 := logFile + "." + time.Now().Format(splitTag)
 	
-	if _, err := os.Stat(expectedFile1); os.IsNotExist(err) {
-		t.Fatalf("First log file %s does not exist", expectedFile1)
+	expectedFile1 := logFile + "." + t1.Format(splitTag)
+	if !file.Exists(expectedFile1) {
+		// 可能在写入时秒数刚好进位
+		expectedFile1 = logFile + "." + time.Now().Format(splitTag)
+		if !file.Exists(expectedFile1) {
+			t.Fatalf("First log file does not exist (checked both possible time slots)")
+		}
 	}
 
-	// 2. 等待跨秒
-	time.Sleep(1100 * time.Millisecond)
+	// 2. 等待跨秒，确保下次写入肯定会触发轮转
+	time.Sleep(1200 * time.Millisecond)
 	
 	// 3. 记录第二条日志，触发轮转
+	t2 := time.Now()
 	logger.Info("second message")
 	time.Sleep(300 * time.Millisecond) // 等待异步写入
-	expectedFile2 := logFile + "." + time.Now().Format(splitTag)
+	
+	expectedFile2 := logFile + "." + t2.Format(splitTag)
+	if !file.Exists(expectedFile2) {
+		expectedFile2 = logFile + "." + time.Now().Format(splitTag)
+		if !file.Exists(expectedFile2) {
+			t.Fatalf("Second log file does not exist after rotation")
+		}
+	}
 	
 	if expectedFile1 == expectedFile2 {
 		t.Errorf("Files should be different for rotation, but both are %s", expectedFile1)
 	}
 
-	if _, err := os.Stat(expectedFile2); os.IsNotExist(err) {
-		t.Errorf("Second log file %s does not exist after rotation", expectedFile2)
-	}
-
 	// 清理
-	os.Remove(expectedFile1)
-	os.Remove(expectedFile2)
+	file.Remove(expectedFile1)
+	file.Remove(expectedFile2)
 }
 
 func TestSensitiveDetailed(t *testing.T) {
