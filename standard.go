@@ -46,6 +46,11 @@ func (b *BaseLog) GetBaseLog() *BaseLog {
 	return b
 }
 
+type StackTraceable interface {
+	GetCallStacks() []string
+	SetCallStacks([]string)
+}
+
 type DebugLog struct {
 	BaseLog
 	Debug string
@@ -62,8 +67,14 @@ type WarningLog struct {
 	CallStacks []string
 }
 
+func (l *WarningLog) GetCallStacks() []string { return l.CallStacks }
+func (l *WarningLog) SetCallStacks(s []string) { l.CallStacks = s }
+
 type ErrorLog struct {
 	BaseLog
 	Error      string
 	CallStacks []string
 }
+
+func (l *ErrorLog) GetCallStacks() []string { return l.CallStacks }
+func (l *ErrorLog) SetCallStacks(s []string) { l.CallStacks = s }

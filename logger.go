@@ -166,6 +166,14 @@ func (logger *Logger) Log(entry LogEntry) {
 	if entry.GetBaseLog().LogTime == 0 {
 		logger.fillBase(entry, "")
 	}
+
+	// 自动补全调用栈
+	if st, ok := entry.(StackTraceable); ok {
+		if len(st.GetCallStacks()) == 0 {
+			st.SetCallStacks(getCallStacks(logger.truncations))
+		}
+	}
+
 	logger.asyncWrite(entry)
 }
 
@@ -217,10 +225,6 @@ func (logger *Logger) fillBase(entry LogEntry, logType string) {
 	base.ServerIp = serverIp
 }
 
-func (logger *Logger) GetCallStacks() []string {
-	return getCallStacks(logger.truncations)
-}
-
 func (logger *Logger) Debug(message string, extra ...any) {
 	if logger.CheckLevel(DEBUG) {
 		entry := GetEntry[DebugLog]()
@@ -250,7 +254,6 @@ func (logger *Logger) Warning(message string, extra ...any) {
 		entry := GetEntry[WarningLog]()
 		logger.fillBase(entry, LogTypeWarning)
 		entry.Warning = message
-		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}
@@ -263,7 +266,6 @@ func (logger *Logger) Error(message string, extra ...any) {
 		entry := GetEntry[ErrorLog]()
 		logger.fillBase(entry, LogTypeError)
 		entry.Error = message
-		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}
