@@ -38,15 +38,13 @@ func init() {
 	}
 }
 
-// MakeTime 解析时间字符串
-func MakeTime(logTime string) time.Time {
-	tm, _ := time.Parse(time.RFC3339Nano, logTime)
+// MakeTime 解析纳秒时间戳或 RFC3339 字符串
+func MakeTime(v any) time.Time {
+	if ts, ok := cast.ToInt64E(v); ok == nil {
+		return time.Unix(0, ts)
+	}
+	tm, _ := time.Parse(time.RFC3339Nano, cast.String(v))
 	return tm
-}
-
-// MakeLogTime 格式化时间为 RFC3339Nano
-func MakeLogTime(tm time.Time) string {
-	return tm.Format(time.RFC3339Nano)
 }
 
 // MakeUsedTime 计算消耗时间（毫秒）
@@ -76,7 +74,7 @@ func ParseBaseLog(line string) *BaseLog {
 		case "logtype":
 			baseLog.LogType = cast.String(v)
 		case "logtime":
-			baseLog.LogTime = cast.String(v)
+			baseLog.LogTime = cast.Int64(v)
 		case "traceid":
 			baseLog.TraceId = cast.String(v)
 		case "imagename":
@@ -101,7 +99,7 @@ func ParseBadLog(line string) *BaseLog {
 	if len(line) > 19 && line[19] == ' ' {
 		tm, err := time.Parse("2006/01/02 15:04:05", line[0:19])
 		if err == nil {
-			baseLog.LogTime = MakeLogTime(tm)
+			baseLog.LogTime = tm.UnixNano()
 			line = line[20:]
 		} else {
 			return nil
@@ -109,7 +107,7 @@ func ParseBadLog(line string) *BaseLog {
 	} else if len(line) > 26 && line[26] == ' ' {
 		tm, err := time.Parse("2006/01/02 15:04:05.000000", line[0:26])
 		if err == nil {
-			baseLog.LogTime = MakeLogTime(tm)
+			baseLog.LogTime = tm.UnixNano()
 			line = line[27:]
 		} else {
 			return nil

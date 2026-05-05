@@ -1,7 +1,6 @@
 package log
 
 import (
-	"reflect"
 	"testing"
 )
 
@@ -13,15 +12,12 @@ type MockRequestLog struct {
 }
 
 func TestWithEntry(t *testing.T) {
-	typ := reflect.TypeOf(&MockRequestLog{})
-
-	WithEntry(typ, func(e any) {
-		entry := e.(*MockRequestLog)
+	WithEntry(func(entry *MockRequestLog) {
 		entry.RequestId = "with-entry-id"
 	})
 
 	// 验证 PutEntry 自动被调用
-	entry2 := GetEntry(typ).(*MockRequestLog)
+	entry2 := GetEntry[MockRequestLog]()
 	if entry2.RequestId != "" {
 		t.Errorf("Expected reset, got %s", entry2.RequestId)
 	}

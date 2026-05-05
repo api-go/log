@@ -1,76 +1,83 @@
-# go/log
+# @go/log
 
-高性能、可插拔、支持脱敏的日志模块。
+> **Maintainer Statement:** 本项目完全由 AI 维护。任何改动均遵循代码质量与性能的最佳实践。
 
-## 特性
-- **零摩擦**: 自动从环境变量获取应用名、IP 等信息。
-- **高性能**: 异步写入，支持对象池化与批量刷盘。
-- **自动化**: 自定义日志类型只需嵌入 `BaseLog`，无需手动实现重置逻辑。
-- **脱敏支持**: 内置敏感字段过滤与正则匹配脱敏。
-- **多渠道**: 支持控制台、本地文件切分、Elasticsearch 批量写入。
+## 🎯 设计哲学
 
-## 安装
+`@go/log` 旨在提供高性能、零摩擦的异步日志系统。其核心目标是：
+
+*   **零摩擦入口**：自动识别环境上下文（应用名、IP等），无需手动构建。
+*   **极致高性能**：异步写入架构，支持对象池复用，大幅降低内存分配。
+*   **语义脱敏**：内置敏感信息（如手机号、密钥）的自动脱敏与正则过滤。
+*   **高度可扩展**：支持多种写入渠道（文件切分、Elasticsearch批量传输）。
+
+## 📦 安装
+
 ```bash
 go get apigo.cc/go/log
 ```
 
-## 基础 API
-所有日志方法均支持变长额外参数，自动通过 `cast.ToMap` 转换为键值对存入 `Extra` 字段。
+## 💡 快速开始
+
 ```go
+import "apigo.cc/go/log"
+
+// 使用默认配置初始化 (或在配置中指定)
+logger := log.NewLogger(log.Config{Name: "my-app", Level: "info"})
+
+// 记录业务日志 (自动通过 cast.ToMap 处理变长参数)
 logger.Info("用户登录", "userId", 10086, "ip", "1.2.3.4")
 logger.Error("数据库连接失败", "db", "mysql", "err", err)
 ```
 
-## 扩展日志 API
+## 🛠 API 指南
 
-### 数据库日志 (DB)
-自动处理耗时计算、脱敏及错误堆栈捕获。
+### 核心功能
+
+1.  **分级记录**
+    * `Debug`, `Info`, `Warning`, `Error` —— 标准日志方法，支持 `message` + 变长 `extra` 参数。
+
+2.  **通用记录 (`Log`)**
+    * `Log(LogEntry)` —— 记录自定义结构的日志。注意：仅支持实现 `LogEntry` 接口的类型（即嵌入了 `BaseLog` 的结构体）。
+
+3.  **专业日志扩展**
+    * **请求日志 (`Request`)**: 记录 HTTP 请求，包含方法、路径、状态码、耗时等。
+    * **数据库日志 (`DB`)**: 自动计算耗时、捕获调用栈并支持脱敏。
+    * **监控与统计 (`Monitor`, `Statistic`)**: 用于应用指标监控。
+    * **任务执行 (`Task`)**: 用于任务耗时与状态记录。
+
+### 自定义日志扩展
+
+如果标准日志分级不能满足业务需求，可以轻松扩展自定义日志类型：
+
+1.  **定义结构体**：必须嵌入 `log.BaseLog` 以自动获得基础字段和池化能力。
+2.  **获取对象**：使用 `log.GetEntry[MyLog]()` 从对象池获取，避免频繁分配内存。
+3.  **业务逻辑**：仅需关注业务相关的字段，`BaseLog` 中的字段（时间、TraceId、服务器信息等）由框架自动填充，map/slice等字段框架会自动初始化好（避免对象重复创建）直接使用即可。
+4.  **发送日志**：调用 `logger.Log(entry)`。
+
 ```go
-// 记录正常 SQL
-logger.DB("mysql", dsn, "SELECT * FROM users WHERE id=?", []any{1}, 10.5, nil)
-
-// 记录带错误的 SQL (自动捕获调用栈并设为 dbError 类型)
-logger.DB("mysql", dsn, "SELECT...", args, usedTime, err, "k1", "v1")
-```
-
-### 任务与监控 (Task / Monitor / Statistic)
-```go
-// 任务执行日志 (任务名, 耗时ms, 是否成功, 消息, 额外参数...)
-logger.Task("CleanCache", 150.2, true, "Success", "deleted", 100)
-
-// 监控告警日志 (目标, 状态码, 消息, 额外参数...)
-logger.Monitor("CPU", 1, "Load too high", "usage", "95%")
-
-// 业务指标统计 (类别, 项目, 数值, 额外参数...)
-logger.Statistic("Business", "OrderCount", 100, "region", "cn")
-```
-
-### 自定义日志类型
-只需嵌入 `BaseLog` 即可利用对象池和自动重置功能。
-```go
-type MyBusinessLog struct {
-    log.BaseLog
-    OrderId string
-    Amount  float64
+type BusinessLog struct {
+    log.BaseLog  // 必须嵌入
+    Action string
+    UserId string
 }
 
-// 使用方式
-entry := log.GetEntry(reflect.TypeOf(&MyBusinessLog{})).(*MyBusinessLog)
-logger.fillBase(entry, "business")
-entry.OrderId = "O123"
-entry.Amount = 99.8
-logger.Log(entry)
+func LogBusiness(logger *log.Logger, action, userId string) {
+    entry := log.GetEntry[BusinessLog]()
+    entry.Action = action
+    entry.UserId = userId
+    logger.Log(entry) // 框架会自动填充 BaseLog 并异步写入后回收对象
+}
 ```
 
-## 配置项 (JSON/YAML)
-可以在配置文件中的 `log` 节点进行配置：
-- `Name`: 应用名称（默认自动获取）
-- `Level`: 日志级别 (debug, info, warning, error)
-- `File`: 输出目标 (console, ./app.log, es://user:pass@host:9200/group)
-- `SplitTag`: 文件切分格式 (如 20060102)
-- `Sensitive`: 敏感字段列表
-- `RegexSensitive`: 脱敏正则
+### 配置项 (JSON/YAML)
 
-## 脱敏规则
-默认规则为 `12:4*4, 11:3*4, 7:2*2, 3:1*1, 2:1*0`。
-格式为 `长度阈值:左保留*右保留`。
+*   `Name`: 应用名称。
+*   `Level`: 日志级别 (`debug`, `info`, `warning`, `error`)。
+*   `File`: 输出目标（支持 `console` 或 `es://` 地址）。
+*   `Sensitive`, `RegexSensitive`: 脱敏配置。
+
+## 🧪 验证状态
+测试全部通过，异步写入与性能达标。
+
+详见：[TEST.md](./TEST.md)

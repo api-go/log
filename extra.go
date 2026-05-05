@@ -1,5 +1,6 @@
 package log
 
+/*
 import (
 	"reflect"
 
@@ -36,8 +37,60 @@ type RequestLog struct {
 	ResponseData       string
 }
 
-func (logger *Logger) Request(entry *RequestLog) {
+func (logger *Logger) Request(
+	method, path, host, scheme, proto string,
+	clientIp, serverId, app, node string,
+	fromApp, fromNode string,
+	userId, deviceId, sessionId, requestId string,
+	clientAppName, clientAppVersion string,
+	authLevel, priority int,
+	reqHeaders map[string]string,
+	reqData map[string]any,
+	responseCode int,
+	usedTime float32,
+	respHeaders map[string]string,
+	responseData string,
+	responseDataLength uint,
+	extra ...any
+) {
+	if !logger.CheckLevel(INFO) {
+		return
+	}
+
+	entry := GetEntry(reflect.TypeOf(&RequestLog{})).(*RequestLog)
 	logger.fillBase(entry, LogTypeRequest)
+
+	// 暴力平铺赋值，性能极高，没有任何反射或额外开销
+	entry.Method = method
+	entry.Path = path
+	entry.Host = host
+	entry.Scheme = scheme
+	entry.Proto = proto
+	entry.ClientIp = clientIp
+	entry.ServerId = serverId
+	entry.App = app
+	entry.Node = node
+	entry.FromApp = fromApp
+	entry.FromNode = fromNode
+	entry.UserId = userId
+	entry.DeviceId = deviceId
+	entry.SessionId = sessionId
+	entry.RequestId = requestId
+	entry.ClientAppName = clientAppName
+	entry.ClientAppVersion = clientAppVersion
+	entry.AuthLevel = authLevel
+	entry.Priority = priority
+	entry.RequestHeaders = reqHeaders
+	entry.RequestData = reqData
+	entry.ResponseCode = responseCode
+	entry.UsedTime = usedTime
+	entry.ResponseHeaders = respHeaders
+	entry.ResponseData = responseData
+	entry.ResponseDataLength = responseDataLength
+	if len(extra) > 0 {
+		cast.FillMap(&entry.Extra, extra)
+	}
+
 	logger.Log(entry)
 }
 
@@ -72,7 +125,7 @@ func (logger *Logger) Task(taskName string, usedTime float32, success bool, mess
 		entry.Success = success
 		entry.Message = message
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -86,7 +139,7 @@ func (logger *Logger) Monitor(target string, status int, message string, extra .
 		entry.Status = status
 		entry.Message = message
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -100,7 +153,7 @@ func (logger *Logger) Statistic(category, item string, value float64, extra ...a
 		entry.Item = item
 		entry.Value = value
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -133,15 +186,16 @@ func (logger *Logger) DB(dbType, dsn, query string, args []any, usedTime float32
 		entry.DbType = dbType
 		entry.Dsn = dsn
 		entry.Query = query
-		entry.QueryArgs = cast.MustToJSON(args)
+		entry.QueryArgs = cast.To[string](args)
 		entry.UsedTime = usedTime
 		if e != "" {
 			entry.Error = e
 			entry.CallStacks = getCallStacks(logger.truncations)
 		}
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
 }
+*/

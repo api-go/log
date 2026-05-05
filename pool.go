@@ -16,13 +16,17 @@ var (
 )
 
 // GetEntry 从池中获取一个指定类型的日志对象，并确保其处于 Reset 后的干净状态
-func GetEntry(t reflect.Type) any {
-	pool, _ := globalPools.pools.LoadOrStore(t, &sync.Pool{
-		New: func() any {
-			return reflect.New(t.Elem()).Interface()
-		},
-	})
-	entry := pool.(*sync.Pool).Get()
+func GetEntry[T any]() *T {
+	t := reflect.TypeFor[*T]()
+	p, ok := globalPools.pools.Load(t)
+	if !ok {
+		p, _ = globalPools.pools.LoadOrStore(t, &sync.Pool{
+			New: func() any {
+				return new(T)
+			},
+		})
+	}
+	entry := p.(*sync.Pool).Get().(*T)
 	ResetLogEntry(entry) // 自动重置所有字段，无需子类实现 Reset
 	return entry
 }
@@ -112,13 +116,11 @@ func PutEntry(entry any) {
 }
 
 // WithEntry 执行闭包并在结束后自动回收对象
-func WithEntry(t reflect.Type, fn func(any)) {
-	entry := GetEntry(t)
+func WithEntry[T any](fn func(*T)) {
+	entry := GetEntry[T]()
 	defer PutEntry(entry)
 	fn(entry)
 }
 
 // LogEntry 是一个标记接口，用于识别是否为对象池管理的日志对象
-type LogEntry interface {
-	IsLogEntry() bool
-}
+// 已移至 standard.go

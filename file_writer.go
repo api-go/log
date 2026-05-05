@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-type FileLogEntry struct {
-	time    time.Time
-	message string
-}
-
 // FileWriter 文件写入器
 type FileWriter struct {
 	fileName  string
@@ -20,8 +15,6 @@ type FileWriter struct {
 	splitTag  string
 	fp        *os.File
 	bufWriter *bufio.Writer
-	entries   []FileLogEntry
-	lock      sync.Mutex
 }
 
 var (
@@ -29,72 +22,57 @@ var (
 	filesLock sync.RWMutex
 )
 
-func (f *FileWriter) Write(tm time.Time, str string) {
-	f.lock.Lock()
-	f.entries = append(f.entries, FileLogEntry{
-		time:    tm,
-		message: str,
-	})
-	f.lock.Unlock()
+// Write 由外层的 writerRunner 单协程调用，绝对并发安全，无需加锁
+func (f *FileWriter) Write(tm time.Time, data []byte) {
+	nowSplit := tm.Format(f.splitTag)
+	
+	// 1. 文件切割逻辑 (按天/按小时流转)
+	if f.lastSplit != nowSplit || f.fp == nil {
+		f.rotateFile(nowSplit)
+	}
+
+	// 2. 直接写内存缓冲区
+	if f.bufWriter != nil {
+		_, err := f.bufWriter.Write(data)
+		if err == nil {
+			f.bufWriter.WriteByte('\n') // 追加换行
+			return
+		}
+	}
+	
+	// 降级：如果文件句柄异常，打印到控制台避免丢失
+	fmt.Println(string(data)) 
 }
 
+// Run 充当 Flush 的角色，由外层的 200ms Ticker 定时调用
 func (f *FileWriter) Run() {
-	f.lock.Lock()
-	var runEntries []FileLogEntry
-	if len(f.entries) > 0 {
-		runEntries = f.entries
-		f.entries = nil
+	if f.bufWriter != nil {
+		_ = f.bufWriter.Flush()
 	}
-	f.lock.Unlock()
+}
 
-	if len(runEntries) > 0 {
-		for _, l := range runEntries {
-			nowSplit := l.time.Format(f.splitTag)
-			if f.lastSplit != nowSplit || f.fp == nil {
-				f.lastSplit = nowSplit
-				f.lock.Lock()
-				if f.bufWriter != nil {
-					_ = f.bufWriter.Flush()
-				}
-				if f.fp != nil {
-					_ = f.fp.Close()
-				}
-				var err error
-				f.fp, err = os.OpenFile(f.fileName+"."+nowSplit, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-				if err == nil {
-					f.bufWriter = bufio.NewWriterSize(f.fp, 64*1024)
-				} else {
-					f.bufWriter = nil
-				}
-				f.lock.Unlock()
-				if err != nil {
-					fmt.Printf("failed to open log file: %s.%s, error: %v\n", f.fileName, nowSplit, err)
-					continue
-				}
-			}
+// 处理文件轮转的内部方法
+func (f *FileWriter) rotateFile(nowSplit string) {
+	if f.bufWriter != nil {
+		_ = f.bufWriter.Flush()
+	}
+	if f.fp != nil {
+		_ = f.fp.Close()
+	}
 
-			logStr := l.time.Format("2006/01/02 15:04:05.000000") + " " + l.message + "\n"
-			f.lock.Lock()
-			if f.bufWriter != nil {
-				_, err := f.bufWriter.WriteString(logStr)
-				if err != nil {
-					fmt.Print(logStr)
-				}
-			} else {
-				fmt.Print(logStr)
-			}
-			f.lock.Unlock()
-		}
-		f.lock.Lock()
-		if f.bufWriter != nil {
-			_ = f.bufWriter.Flush()
-		}
-		f.lock.Unlock()
+	var err error
+	f.fp, err = os.OpenFile(f.fileName+"."+nowSplit, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err == nil {
+		// 分配 64KB 缓冲区
+		f.bufWriter = bufio.NewWriterSize(f.fp, 64*1024)
+		f.lastSplit = nowSplit
+	} else {
+		f.bufWriter = nil
+		fmt.Printf("failed to open log file: %s.%s, error: %v\n", f.fileName, nowSplit, err)
 	}
 }
 
 func (f *FileWriter) Close() {
-	f.lock.Lock()
 	if f.bufWriter != nil {
 		_ = f.bufWriter.Flush()
 		f.bufWriter = nil
@@ -103,5 +81,4 @@ func (f *FileWriter) Close() {
 		_ = f.fp.Close()
 		f.fp = nil
 	}
-	f.lock.Unlock()
 }

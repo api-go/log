@@ -3,7 +3,6 @@ package log
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -31,41 +30,17 @@ func Viewable(line string) string {
 		return line
 	}
 
-	var logTime time.Time
-	if strings.ContainsRune(b.LogTime, 'T') {
-		logTime = MakeTime(b.LogTime)
-	} else {
-		ft := cast.Float64(b.LogTime)
-		ts := int64(math.Floor(ft))
-		tns := int64((ft - float64(ts)) * 1e9)
-		logTime = time.Unix(ts, tns)
-	}
+	logTime := time.Unix(0, b.LogTime)
 
-	var outs []string
-	t1 := strings.Split(logTime.Format("01-02 15:04:05.000"), " ")
-	d := t1[0]
-	t := ""
-	if len(t1) > 1 {
-		t = t1[1]
-	}
-	t2 := strings.Split(t, ".")
-	s := ""
-	if len(t2) > 1 {
-		s = t2[1]
-	}
-	t = t2[0]
-	outs = append(outs, shell.White(shell.Bold, d+" "+t))
-	if s != "" {
-		outs = append(outs, shell.White("."+s))
-	}
-	outs = append(outs, " ", shell.Style(shell.TextWhite, shell.Dim, shell.Underline, b.TraceId))
+	var builder strings.Builder
+	builder.WriteString(shell.White(shell.Bold, logTime.Format("01-02 15:04:05.000")))
+	builder.WriteString(" ")
+	builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Underline, b.TraceId))
 
 	level := ""
-	levelKey := ""
-	for _, k := range []string{"debug", "warning", "error", "info", "Debug", "Warning", "Error", "Info"} {
+	for _, k := range []string{"info", "warning", "error", "debug"} {
 		if b.Extra[k] != nil {
-			level = strings.ToLower(k)
-			levelKey = k
+			level = k
 			break
 		}
 	}
@@ -76,103 +51,102 @@ func Viewable(line string) string {
 		code := cast.Int(b.Extra["responsecode"])
 		used := float32(cast.Float64(b.Extra["usedtime"]))
 
-		outs = append(outs, " ", shell.Cyan(shell.Bold, "REQUEST"), " ", shell.Cyan(method), " ", path)
+		builder.WriteString(" ")
+		builder.WriteString(shell.Cyan(shell.Bold, "REQUEST"))
+		builder.WriteString(" ")
+		builder.WriteString(shell.Cyan(method))
+		builder.WriteString(" ")
+		builder.WriteString(path)
+		builder.WriteString(" ")
 		if code >= 500 {
-			outs = append(outs, " ", shell.BRed(cast.String(code)))
+			builder.WriteString(shell.BRed(cast.String(code)))
 		} else if code >= 400 {
-			outs = append(outs, " ", shell.BYellow(cast.String(code)))
+			builder.WriteString(shell.BYellow(cast.String(code)))
 		} else {
-			outs = append(outs, " ", shell.BGreen(cast.String(code)))
+			builder.WriteString(shell.BGreen(cast.String(code)))
 		}
-		outs = append(outs, " ", shell.Style(shell.Dim, fmt.Sprintf("%.2fms", used)))
+		builder.WriteString(" ")
+		builder.WriteString(shell.Style(shell.Dim, fmt.Sprintf("%.2fms", used)))
 
-		delete(b.Extra, "method")
-		delete(b.Extra, "path")
-		delete(b.Extra, "responsecode")
-		delete(b.Extra, "usedtime")
-		delete(b.Extra, "host")
-		delete(b.Extra, "scheme")
-		delete(b.Extra, "proto")
-		delete(b.Extra, "clientip")
-		delete(b.Extra, "serverid")
-		delete(b.Extra, "app")
-		delete(b.Extra, "node")
-		delete(b.Extra, "fromapp")
-		delete(b.Extra, "fromnode")
-		delete(b.Extra, "userid")
-		delete(b.Extra, "deviceid")
-		delete(b.Extra, "clientappname")
-		delete(b.Extra, "clientappversion")
-		delete(b.Extra, "sessionid")
-		delete(b.Extra, "requestid")
-		delete(b.Extra, "authlevel")
-		delete(b.Extra, "priority")
-		delete(b.Extra, "requestheaders")
-		delete(b.Extra, "requestdata")
-		delete(b.Extra, "responseheaders")
-		delete(b.Extra, "responsedatalength")
-		delete(b.Extra, "responsedata")
-		delete(b.Extra, "logname")
-		delete(b.Extra, "logtype")
-		delete(b.Extra, "logtime")
-		delete(b.Extra, "traceid")
-		delete(b.Extra, "imagename")
-		delete(b.Extra, "imagetag")
-		delete(b.Extra, "servername")
-		delete(b.Extra, "serverip")
+		for _, k := range []string{"method", "path", "responsecode", "usedtime", "host", "scheme", "proto", "clientip", "serverid", "app", "node", "fromapp", "fromnode", "userid", "deviceid", "clientappname", "clientappversion", "sessionid", "requestid", "authlevel", "priority", "requestheaders", "requestdata", "responseheaders", "responsedatalength", "responsedata", "logname", "logtype", "logtime", "traceid", "imagename", "imagetag", "servername", "serverip"} {
+			delete(b.Extra, k)
+		}
 	} else if b.LogType == LogTypeStatistic {
-		outs = append(outs, " ", shell.Cyan(shell.Bold, "STATISTIC"))
+		builder.WriteString(" ")
+		builder.WriteString(shell.Cyan(shell.Bold, "STATISTIC"))
 	} else if b.LogType == LogTypeTask {
-		outs = append(outs, " ", shell.Cyan(shell.Bold, "TASK"))
+		builder.WriteString(" ")
+		builder.WriteString(shell.Cyan(shell.Bold, "TASK"))
 	} else {
 		if level != "" {
-			msg := cast.String(b.Extra[levelKey])
-			delete(b.Extra, levelKey)
+			msg := cast.String(b.Extra[level])
+			delete(b.Extra, level)
+			builder.WriteString(" ")
 			switch level {
 			case "info":
-				outs = append(outs, " ", shell.Cyan(msg))
+				builder.WriteString(shell.Cyan(msg))
 			case "warning":
-				outs = append(outs, " ", shell.Yellow(msg))
+				builder.WriteString(shell.Yellow(msg))
 			case "error":
-				outs = append(outs, " ", shell.Red(msg))
+				builder.WriteString(shell.Red(msg))
 			case "debug":
-				outs = append(outs, " ", msg)
+				builder.WriteString(msg)
 			}
 		} else if b.LogType == "undefined" {
-			outs = append(outs, " ", shell.Style(shell.Dim, "-"))
+			builder.WriteString(" ")
+			builder.WriteString(shell.Style(shell.Dim, "-"))
 		} else {
-			outs = append(outs, " ", shell.Cyan(shell.Bold, b.LogType))
+			builder.WriteString(" ")
+			builder.WriteString(shell.Cyan(shell.Bold, b.LogType))
 		}
 	}
 
-	callStacks := b.Extra["callStacks"]
-	delete(b.Extra, "callStacks")
+	callStacks := b.Extra["callstacks"]
+	delete(b.Extra, "callstacks")
 
 	if b.Extra != nil {
 		for k, v := range b.Extra {
-			vStr := cast.String(v)
+			vStr := ""
+			if v == nil {
+				continue
+			}
+			switch v.(type) {
+			case map[string]any, []any:
+				vStr, _ = cast.ToJSON(v)
+			default:
+				vStr = cast.String(v)
+			}
+
 			if k == "extra" && len(vStr) > 0 && vStr[0] == '{' {
-				extra := make(map[string]any)
-				_ = json.Unmarshal([]byte(vStr), &extra)
-				for k2, v2 := range extra {
-					outs = append(outs, "  ", shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k2+":"), cast.String(v2))
+				extra, err := cast.ToMap[string, any](vStr)
+				if err == nil {
+					for k2, v2 := range extra {
+						builder.WriteString("  ")
+						builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k2+":"))
+						builder.WriteString(cast.String(v2))
+					}
 				}
 			} else {
-				outs = append(outs, "  ", shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k+":"), vStr)
+				builder.WriteString("  ")
+				builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k+":"))
+				builder.WriteString(vStr)
 			}
 		}
 	}
 
 	if callStacks != nil {
 		var callStacksList []any
-		if csStr, ok := callStacks.(string); ok && len(csStr) > 2 && csStr[0] == '[' {
-			_ = json.Unmarshal([]byte(csStr), &callStacksList)
-		} else if csList, ok := callStacks.([]any); ok {
-			callStacksList = csList
+		switch cs := callStacks.(type) {
+		case string:
+			if len(cs) > 2 && cs[0] == '[' {
+				_ = json.Unmarshal([]byte(cs), &callStacksList)
+			}
+		case []any:
+			callStacksList = cs
 		}
 
 		if len(callStacksList) > 0 {
-			outs = append(outs, "\n")
+			builder.WriteString("\n")
 			for _, vi := range callStacksList {
 				v := cast.String(vi)
 				postfix := ""
@@ -183,11 +157,12 @@ func Viewable(line string) string {
 					postfix = v
 					v = ""
 				}
-				outs = append(outs, " ", shell.Style(shell.Dim, v))
-				// 简化格式化逻辑
-				outs = append(outs, shell.Style(shell.TextWhite, postfix), "\n")
+				builder.WriteString(" ")
+				builder.WriteString(shell.Style(shell.Dim, v))
+				builder.WriteString(shell.Style(shell.TextWhite, postfix))
+				builder.WriteString("\n")
 			}
 		}
 	}
-	return strings.Join(outs, "")
+	return builder.String()
 }

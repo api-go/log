@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -161,26 +160,11 @@ func NewLogger(conf Config) *Logger {
 	return &logger
 }
 
-func (logger *Logger) Log(data any) {
-	if entry, ok := data.(LogEntry); ok && entry.IsLogEntry() {
-		logger.asyncWrite(data)
-		return
-	}
-
-	buf, err := logger.formatter.Format(data, logger.sensitiveKeys)
-
-	if err != nil {
-		buf, _ = logger.formatter.Format(map[string]any{
-			"logType": LogTypeUndefined,
-			"traceId": logger.traceId,
-			"message": cast.String(data),
-		}, nil)
-	}
-
-	logger.writeBuf(buf)
+func (logger *Logger) Log(entry LogEntry) {
+	logger.asyncWrite(entry)
 }
 
-func (logger *Logger) asyncWrite(entry any) {
+func (logger *Logger) asyncWrite(entry LogEntry) {
 	buf, err := logger.formatter.Format(entry, logger.sensitiveKeys)
 
 	if err == nil {
@@ -191,14 +175,18 @@ func (logger *Logger) asyncWrite(entry any) {
 
 func (logger *Logger) writeBuf(buf []byte) {
 	if writerRunning.Load() {
-		WriteAsync(buf)
+		WriteAsync(logPayload{
+			buf:    buf,
+			writer: logger.writer,
+			file:   logger.file,
+		})
 		return
 	}
 
 	if logger.writer != nil {
 		logger.writer.Log(buf)
 	} else if logger.file != nil {
-		logger.file.Write(time.Now(), string(buf))
+		fmt.Println(Viewable(string(buf)))
 	} else if logger.goLogger == nil {
 		fmt.Println(Viewable(string(buf)))
 	} else {
@@ -206,28 +194,15 @@ func (logger *Logger) writeBuf(buf []byte) {
 	}
 }
 
-func (logger *Logger) fillBase(entry any, logType string) {
-	var base *BaseLog
-	rv := reflect.ValueOf(entry)
-	if rv.Kind() == reflect.Ptr {
-		rv = rv.Elem()
-	}
-	if rv.Kind() == reflect.Struct {
-		f := rv.FieldByName("BaseLog")
-		if f.IsValid() && f.CanAddr() {
-			if b, ok := f.Addr().Interface().(*BaseLog); ok {
-				base = b
-			}
-		}
-	}
-
+func (logger *Logger) fillBase(entry LogEntry, logType string) {
+	base := entry.GetBaseLog()
 	if base == nil {
 		return
 	}
 
 	base.LogName = logger.config.Name
 	base.LogType = logType
-	base.LogTime = MakeLogTime(time.Now())
+	base.LogTime = time.Now().UnixNano()
 	base.TraceId = logger.traceId
 	base.ImageName = dockerImageName
 	base.ImageTag = dockerImageTag
@@ -237,11 +212,11 @@ func (logger *Logger) fillBase(entry any, logType string) {
 
 func (logger *Logger) Debug(message string, extra ...any) {
 	if logger.CheckLevel(DEBUG) {
-		entry := GetEntry(reflect.TypeOf(&DebugLog{})).(*DebugLog)
+		entry := GetEntry[DebugLog]()
 		logger.fillBase(entry, LogTypeDebug)
 		entry.Debug = message
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -249,11 +224,11 @@ func (logger *Logger) Debug(message string, extra ...any) {
 
 func (logger *Logger) Info(message string, extra ...any) {
 	if logger.CheckLevel(INFO) {
-		entry := GetEntry(reflect.TypeOf(&InfoLog{})).(*InfoLog)
+		entry := GetEntry[InfoLog]()
 		logger.fillBase(entry, LogTypeInfo)
 		entry.Info = message
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -261,12 +236,12 @@ func (logger *Logger) Info(message string, extra ...any) {
 
 func (logger *Logger) Warning(message string, extra ...any) {
 	if logger.CheckLevel(WARNING) {
-		entry := GetEntry(reflect.TypeOf(&WarningLog{})).(*WarningLog)
+		entry := GetEntry[WarningLog]()
 		logger.fillBase(entry, LogTypeWarning)
 		entry.Warning = message
 		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}
@@ -274,12 +249,12 @@ func (logger *Logger) Warning(message string, extra ...any) {
 
 func (logger *Logger) Error(message string, extra ...any) {
 	if logger.CheckLevel(ERROR) {
-		entry := GetEntry(reflect.TypeOf(&ErrorLog{})).(*ErrorLog)
+		entry := GetEntry[ErrorLog]()
 		logger.fillBase(entry, LogTypeError)
 		entry.Error = message
 		entry.CallStacks = getCallStacks(logger.truncations)
 		if len(extra) > 0 {
-			cast.ToMap(entry.Extra, extra)
+			cast.FillMap(&entry.Extra, extra)
 		}
 		logger.Log(entry)
 	}

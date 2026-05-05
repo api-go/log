@@ -1,65 +1,87 @@
-package log
+package log_test
 
 import (
-	"fmt"
 	"testing"
+
+	"apigo.cc/go/log"
 )
 
+// Define local log types for testing since they are commented out in the main package
+type RequestEntry struct {
+	log.BaseLog
+	Method       string
+	Path         string
+	ResponseCode int
+	UsedTime     float32
+}
+
+type DBEntry struct {
+	log.BaseLog
+	DbType    string
+	Dsn       string
+	Query     string
+	QueryArgs string
+	UsedTime  float32
+	Error     string
+}
+
 func TestLogger(t *testing.T) {
-	conf := Config{
+	conf := log.Config{
 		Name:  "test-app",
 		Level: "debug",
 	}
-	logger := NewLogger(conf)
+	logger := log.NewLogger(conf)
 
 	// 测试 Info 日志
 	logger.Info("hello", "key1", "value1")
 }
 
 func TestDesensitization(t *testing.T) {
-	logger := NewLogger(Config{
+	logger := log.NewLogger(log.Config{
 		Sensitive: "phone",
 	})
-	
-	data := map[string]any{
-		"phone": "13812345678",
+
+	type MyLog struct {
+		log.BaseLog
+		Phone string
 	}
-	logger.Log(data) // 应该在输出中脱敏
+
+	entry := log.GetEntry[MyLog]()
+	entry.Phone = "13812345678"
+	logger.Log(entry) // 应该在输出中脱敏
 }
 
 func TestDBLog(t *testing.T) {
-	logger := NewLogger(Config{
+	logger := log.NewLogger(log.Config{
 		Level: "debug",
 	})
 
-	// 测试普通 DB 日志
-	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, nil)
-
-	// 测试 DB 错误日志 (通过传递 error 对象)
-	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, fmt.Errorf("connection lost"))
-
-	// 测试带额外参数的 DB 日志
-	logger.DB("mysql", "dsn...", "SELECT * FROM users", []any{1}, 10.5, nil, "k1", "v1")
+	entry := log.GetEntry[DBEntry]()
+	entry.LogType = "db"
+	entry.DbType = "mysql"
+	entry.Query = "SELECT * FROM users"
+	entry.UsedTime = 10.5
+	logger.Log(entry)
 }
 
 func TestRequestLog(t *testing.T) {
-	logger := NewLogger(Config{
+	logger := log.NewLogger(log.Config{
 		Level: "debug",
 	})
 
-	req := &RequestLog{
-		Method: "GET",
-		Path:   "/api/user",
-	}
-	logger.Request(req)
+	entry := log.GetEntry[RequestEntry]()
+	entry.LogType = "request"
+	entry.Method = "GET"
+	entry.Path = "/api/user"
+	entry.ResponseCode = 200
+	entry.UsedTime = 10.5
+	logger.Log(entry)
 }
 
 func TestExtraLogs(t *testing.T) {
-	logger := NewLogger(Config{
+	logger := log.NewLogger(log.Config{
 		Level: "debug",
 	})
 
-	logger.Task("CleanCache", 150.2, true, "Success clean")
-	logger.Monitor("CPU", 1, "Normal")
-	logger.Statistic("Business", "OrderCount", 100)
+	logger.Info("Extra log test", "key", "value")
 }

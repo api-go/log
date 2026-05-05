@@ -11,7 +11,7 @@ func init() {
 	RegisterWriterMaker("ess", NewESWriter)
 
 	var conf Config
-	_ = config.Load("log", &conf)
+	_ = config.Load(&conf, "log")
 	DefaultLogger = NewLogger(conf)
 }
 

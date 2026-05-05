@@ -13,12 +13,19 @@ type Writer interface {
 	Run()
 }
 
+// logPayload 包含路由信息的包裹
+type logPayload struct {
+	buf    []byte
+	writer Writer      // 目标自定义 Writer
+	file   *FileWriter // 目标文件 Writer
+}
+
 var (
 	writerRunning  atomic.Bool
 	writerLock     sync.Mutex // 仅用于注册时锁定
 	writerStopChan chan bool
 	writers        atomic.Value // 存储 []Writer
-	logChannel     chan []byte
+	logChannel     chan logPayload
 )
 
 // ConsoleWriter 控制台写入器
@@ -33,7 +40,7 @@ func (w *ConsoleWriter) Run() {
 }
 
 func init() {
-	logChannel = make(chan []byte, 10000)
+	logChannel = make(chan logPayload, 10000)
 	writers.Store([]Writer{})
 	RegisterWriterMaker("console", func(conf *Config) Writer {
 		return &ConsoleWriter{}
@@ -41,7 +48,7 @@ func init() {
 }
 
 // WriteAsync 异步写入日志
-func WriteAsync(buf []byte) {
+func WriteAsync(payload logPayload) {
 	defer func() {
 		recover()
 	}()
@@ -49,7 +56,7 @@ func WriteAsync(buf []byte) {
 		return
 	}
 	select {
-	case logChannel <- buf:
+	case logChannel <- payload:
 	default:
 		// 丢弃或处理过载，此处简单丢弃
 	}
@@ -91,23 +98,23 @@ func writerRunner() {
 
 	for {
 		select {
-		case buf, ok := <-logChannel:
+		case payload, ok := <-logChannel:
 			if !ok {
 				flushWriters()
 				return
 			}
-			processLog(buf)
+			processLog(payload)
 
 			// 尝试批量处理更多日志
 			batchCount := 0
 			for batchCount < 100 {
 				select {
-				case nextBuf, nextOk := <-logChannel:
+				case nextPayload, nextOk := <-logChannel:
 					if !nextOk {
 						flushWriters()
 						return
 					}
-					processLog(nextBuf)
+					processLog(nextPayload)
 					batchCount++
 				default:
 					batchCount = 100 // break outer loop
@@ -119,19 +126,13 @@ func writerRunner() {
 	}
 }
 
-func processLog(buf []byte) {
-	// 使用原子读取的 writer 列表
-	curWriters, _ := writers.Load().([]Writer)
-	for _, w := range curWriters {
-		w.Log(buf)
+func processLog(payload logPayload) {
+	// 精准路由：根据包裹信息决定写入目标
+	if payload.writer != nil {
+		payload.writer.Log(payload.buf)
+	} else if payload.file != nil {
+		payload.file.Write(time.Now(), payload.buf)
 	}
-
-	// 文件写入处理
-	filesLock.RLock()
-	for _, f := range files {
-		f.Write(time.Now(), string(buf))
-	}
-	filesLock.RUnlock()
 }
 
 func flushWriters() {
