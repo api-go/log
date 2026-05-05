@@ -217,6 +217,10 @@ func (logger *Logger) fillBase(entry LogEntry, logType string) {
 	base.ServerIp = serverIp
 }
 
+func (logger *Logger) GetCallStacks() []string {
+	return getCallStacks(logger.truncations)
+}
+
 func (logger *Logger) Debug(message string, extra ...any) {
 	if logger.CheckLevel(DEBUG) {
 		entry := GetEntry[DebugLog]()
