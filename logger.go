@@ -161,6 +161,11 @@ func NewLogger(conf Config) *Logger {
 }
 
 func (logger *Logger) Log(entry LogEntry) {
+	// 如果是自动生成的 LogType（如 Debug/Info/Warning/Error 对应的类型），这里通常已经在方法内 fillBase 了
+	// 但对于像 discover.Log 这样直接调用 Log(entry) 的，需要在这里补全
+	if entry.GetBaseLog().LogTime == 0 {
+		logger.fillBase(entry, "")
+	}
 	logger.asyncWrite(entry)
 }
 
@@ -201,7 +206,9 @@ func (logger *Logger) fillBase(entry LogEntry, logType string) {
 	}
 
 	base.LogName = logger.config.Name
-	base.LogType = logType
+	if logType != "" {
+		base.LogType = logType
+	}
 	base.LogTime = time.Now().UnixNano()
 	base.TraceId = logger.traceId
 	base.ImageName = dockerImageName

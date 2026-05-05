@@ -39,7 +39,7 @@ func Viewable(line string) string {
 
 	level := ""
 	for _, k := range []string{"info", "warning", "error", "debug"} {
-		if b.Extra[k] != nil {
+		if v := b.Extra[k]; v != nil && cast.String(v) != "" {
 			level = k
 			break
 		}
