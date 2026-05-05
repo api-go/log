@@ -12,7 +12,6 @@ type Config struct {
 	RegexSensitive string
 	SensitiveRule  string
 	KeepKeyCase    bool // 是否保持Key的首字母大小写？默认一律使用小写
-	Formatter      Formatter
 }
 
 type LevelType int

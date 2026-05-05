@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.4] - 2026-05-05
+- **高性能 Meta 驱动架构**: 
+  - 日志存储格式由 JSON Object 彻底切换为 **JSON Positional Array (`[...]`)**，通过位置索引消除重复 Key 的存储与传输开销。
+  - 实现基于反射的 **零装箱 (No-Boxing) 序列化**，直接拼接 JSON 字符串，大幅降低内存分配与 CPU 占用。
+- **元数据外置与可视化**:
+  - 引入 `.log.meta.json` 机制，将字段顺序、颜色、格式化等可视化逻辑从核心包中剥离。
+  - 新增独立 CLI 工具 `logv`，支持基于元数据文件的 stdin 流式日志渲染。
+  - 改造 `Viewable` 接口，支持基于 MetaRegistry 的动态终端彩色输出渲染。
+- **字段优化与压缩**:
+  - 合并 `ImageName/Tag` 为 `Image`，合并 `ServerName/Ip` 为 `Server`，精简日志槽位。
+  - 引入 `hide:true` 标签，支持在控制台隐藏结构性元数据（如 `LogName`, `LogType`），保持输出极致纯净。
+- **架构兼容性**:
+  - 调整 `Writer` 接口，支持自定义 Writer（如 `ESWriter`）自行决定序列化格式（如转回 Object 以适配 ES 索引）。
+  - `utility.go` 新增对旧版 JSON 对象日志的解析兼容。
+- **安全加固**: 为 `http`, `db`, `redis`, `discover` 等子包同步添加 `.gitignore` 以排除自动生成的 `.log.meta.json`。
+
 ## [1.1.2] - 2026-05-05
 - **架构解耦**: 
   - 正式移除 `log` 包对数据库日志（`DB` 方法及 `DBLog` 结构）的内置支持，推动“日志格式随业务走”的架构对齐。

@@ -78,13 +78,29 @@ func ParseBaseLog(line string) *BaseLog {
 		case "traceid":
 			baseLog.TraceId = cast.String(v)
 		case "imagename":
-			baseLog.ImageName = cast.String(v)
+			if baseLog.Image != "" {
+				baseLog.Image = cast.String(v) + ":" + baseLog.Image
+			} else {
+				baseLog.Image = cast.String(v)
+			}
 		case "imagetag":
-			baseLog.ImageTag = cast.String(v)
+			if baseLog.Image != "" {
+				baseLog.Image = baseLog.Image + ":" + cast.String(v)
+			} else {
+				baseLog.Image = cast.String(v)
+			}
 		case "servername":
-			baseLog.ServerName = cast.String(v)
+			if baseLog.Server != "" {
+				baseLog.Server = cast.String(v) + ":" + baseLog.Server
+			} else {
+				baseLog.Server = cast.String(v)
+			}
 		case "serverip":
-			baseLog.ServerIp = cast.String(v)
+			if baseLog.Server != "" {
+				baseLog.Server = baseLog.Server + ":" + cast.String(v)
+			} else {
+				baseLog.Server = cast.String(v)
+			}
 		default:
 			baseLog.Extra[lk] = v
 		}

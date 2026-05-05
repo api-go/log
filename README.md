@@ -6,8 +6,9 @@
 
 `@go/log` 旨在提供高性能、零摩擦的异步日志系统。其核心目标是：
 
+*   **极致高性能**：采用 **Meta-Driven Positional Array (元数据驱动定长数组)** 架构。日志以单行 JSON 数组 (`[...]`) 形式落盘，消除 Key 冗余与装箱开销，性能提升数倍。
+*   **架构解耦**：元数据外置于 `.log.meta.json`。日志包仅负责高速序列化，可视化由外部工具或 `Viewable` 接口根据元数据动态渲染。
 *   **零摩擦入口**：自动识别环境上下文（应用名、IP等），无需手动构建。
-*   **极致高性能**：异步写入架构，支持对象池复用，大幅降低内存分配。
 *   **语义脱敏**：内置敏感信息（如手机号、密钥）的自动脱敏与正则过滤。
 *   **高度可扩展**：支持多种写入渠道（文件切分、Elasticsearch批量传输）。
 
@@ -40,33 +41,35 @@ logger.Error("数据库连接失败", "db", "mysql", "err", err)
 2.  **通用记录 (`Log`)**
     * `Log(LogEntry)` —— 记录自定义结构的日志。注意：仅支持实现 `LogEntry` 接口的类型（即嵌入了 `BaseLog` 的结构体）。
 
-3.  **专业日志扩展**
-    * **请求日志 (`Request`)**: 记录 HTTP 请求，包含方法、路径、状态码、耗时等。
-    * **数据库日志 (`DB`)**: 自动计算耗时、捕获调用栈并支持脱敏。
-    * **监控与统计 (`Monitor`, `Statistic`)**: 用于应用指标监控。
-    * **任务执行 (`Task`)**: 用于任务耗时与状态记录。
+3.  **独立可视化工具 (`logv`)**
+    * 在项目根目录下运行 `go run apigo.cc/go/log/logv` 或将其编译为二进制。该工具从 `stdin` 读取 JSON 数组日志，并根据当前目录的 `.log.meta.json` 自动渲染为带颜色和格式化的彩色文本。
 
 ### 自定义日志扩展
 
 如果标准日志分级不能满足业务需求，可以轻松扩展自定义日志类型：
 
-1.  **定义结构体**：必须嵌入 `log.BaseLog` 以自动获得基础字段和池化能力。
-2.  **获取对象**：使用 `log.GetEntry[MyLog]()` 从对象池获取，避免频繁分配内存。
-3.  **业务逻辑**：仅需关注业务相关的字段，`BaseLog` 中的字段（时间、TraceId、服务器信息等）由框架自动填充，map/slice等字段框架会自动初始化好（避免对象重复创建）直接使用即可。
-4.  **发送日志**：调用 `logger.Log(entry)`。
+1.  **定义结构体**：必须嵌入 `log.BaseLog`。
+2.  **标注位置与样式**：使用 `log:"pos:N,color:xxx,hide:true"` 标签定义字段在数组中的位置及在 `logv` 中的显示样式。
+3.  **注册模型**：在 `init()` 中调用 `log.RegisterType("my-type", MyLog{})`。
+4.  **获取与发送**：使用 `log.GetEntry[MyLog]()` 并调用 `logger.Log(entry)`。
 
 ```go
 type BusinessLog struct {
     log.BaseLog  // 必须嵌入
-    Action string
-    UserId string
+    Action string `log:"pos:10,color:cyan"`
+    UserId string `log:"pos:11"`
+}
+
+func init() {
+    log.RegisterType("business", BusinessLog{})
 }
 
 func LogBusiness(logger *log.Logger, action, userId string) {
     entry := log.GetEntry[BusinessLog]()
+    entry.LogType = "business"
     entry.Action = action
     entry.UserId = userId
-    logger.Log(entry) // 框架会自动填充 BaseLog 并异步写入后回收对象
+    logger.Log(entry) 
 }
 ```
 

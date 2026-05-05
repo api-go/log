@@ -76,11 +76,15 @@ func NewESWriter(conf *Config) Writer {
 	return w
 }
 
-func (w *ESWriter) Log(data []byte) {
-	if len(data) == 0 {
+func (w *ESWriter) Log(entry LogEntry, data []byte) {
+	// data is array, but ES needs object
+	// convert entry to JSON object
+	// TODO: Consider desensitization here if needed, but for now ToJSONBytes
+	objBytes, err := cast.ToJSONBytes(entry)
+	if err != nil || len(objBytes) == 0 {
 		return
 	}
-	dataString := string(data)
+	dataString := string(objBytes)
 
 	w.lock.Lock()
 	w.queue = append(w.queue, w.prefix, dataString)

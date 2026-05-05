@@ -15,9 +15,9 @@ var errorLineMatcher = regexp.MustCompile(`(\w+\.go:\d+)`)
 var codeFileMatcher = regexp.MustCompile(`(\w+?\.)(go|js)`)
 
 func Viewable(line string) string {
-	b := ParseBaseLog(line)
-	if b == nil {
-		// 高亮错误代码
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "[") {
+		// Fallback highlight for non-array strings
 		if strings.Contains(line, ".go:") {
 			if strings.Contains(line, "/ssgo/") || strings.Contains(line, "/ssdo/") || strings.Contains(line, "/gojs/") {
 				line = errorLineMatcher.ReplaceAllString(line, shell.BYellow("$1"))
@@ -30,139 +30,148 @@ func Viewable(line string) string {
 		return line
 	}
 
-	logTime := time.Unix(0, b.LogTime)
+	var arr []any
+	if err := json.Unmarshal([]byte(line), &arr); err != nil {
+		return line
+	}
+
+	if len(arr) < 3 {
+		return line // At least Name, Type, Time
+	}
+
+	logType := cast.String(arr[1])
+	if logType == "" {
+		logType = "undefined"
+	}
+
+	meta := GetMeta(logType)
+	if len(meta) == 0 {
+		// Fallback rendering
+		return fallbackRenderArray(arr)
+	}
 
 	var builder strings.Builder
-	builder.WriteString(shell.White(shell.Bold, logTime.Format("01-02 15:04:05.000")))
-	builder.WriteString(" ")
-	builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Underline, b.TraceId))
 
-	level := ""
-	for _, k := range []string{"info", "warning", "error", "debug"} {
-		if v := b.Extra[k]; v != nil && cast.String(v) != "" {
-			level = k
-			break
+	for i, v := range arr {
+		if v == nil {
+			continue
 		}
-	}
-
-	if b.LogType == LogTypeRequest {
-		method := cast.String(b.Extra["method"])
-		path := cast.String(b.Extra["path"])
-		code := cast.Int(b.Extra["responsecode"])
-		used := float32(cast.Float64(b.Extra["usedtime"]))
-
-		builder.WriteString(" ")
-		builder.WriteString(shell.Cyan(shell.Bold, "REQUEST"))
-		builder.WriteString(" ")
-		builder.WriteString(shell.Cyan(method))
-		builder.WriteString(" ")
-		builder.WriteString(path)
-		builder.WriteString(" ")
-		if code >= 500 {
-			builder.WriteString(shell.BRed(cast.String(code)))
-		} else if code >= 400 {
-			builder.WriteString(shell.BYellow(cast.String(code)))
-		} else {
-			builder.WriteString(shell.BGreen(cast.String(code)))
-		}
-		builder.WriteString(" ")
-		builder.WriteString(shell.Style(shell.Dim, fmt.Sprintf("%.2fms", used)))
-
-		for _, k := range []string{"method", "path", "responsecode", "usedtime", "host", "scheme", "proto", "clientip", "serverid", "app", "node", "fromapp", "fromnode", "userid", "deviceid", "clientappname", "clientappversion", "sessionid", "requestid", "authlevel", "priority", "requestheaders", "requestdata", "responseheaders", "responsedatalength", "responsedata", "logname", "logtype", "logtime", "traceid", "imagename", "imagetag", "servername", "serverip"} {
-			delete(b.Extra, k)
-		}
-	} else if b.LogType == LogTypeStatistic {
-		builder.WriteString(" ")
-		builder.WriteString(shell.Cyan(shell.Bold, "STATISTIC"))
-	} else if b.LogType == LogTypeTask {
-		builder.WriteString(" ")
-		builder.WriteString(shell.Cyan(shell.Bold, "TASK"))
-	} else {
-		if level != "" {
-			msg := cast.String(b.Extra[level])
-			delete(b.Extra, level)
+		if i >= len(meta) {
+			// Unmapped trailing values, just print them
 			builder.WriteString(" ")
-			switch level {
-			case "info":
-				builder.WriteString(shell.Cyan(msg))
-			case "warning":
-				builder.WriteString(shell.Yellow(msg))
-			case "error":
-				builder.WriteString(shell.Red(msg))
-			case "debug":
-				builder.WriteString(msg)
+			builder.WriteString(shell.Style(shell.Dim, fmt.Sprintf("Index%d:", i)))
+			builder.WriteString(cast.String(v))
+			continue
+		}
+
+		m := meta[i]
+
+		if m.Hide {
+			continue
+		}
+		
+		if m.Name == "Extra" {
+			extraMap, ok := v.(map[string]any)
+			if ok && len(extraMap) > 0 {
+				for k, ev := range extraMap {
+					builder.WriteString("  ")
+					builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k+":"))
+					vStr := ""
+					switch ev.(type) {
+					case map[string]any, []any:
+						vStr, _ = cast.ToJSON(ev)
+					default:
+						vStr = cast.String(ev)
+					}
+					builder.WriteString(vStr)
+				}
 			}
-		} else if b.LogType == "undefined" {
-			builder.WriteString(" ")
-			builder.WriteString(shell.Style(shell.Dim, "-"))
-		} else {
-			builder.WriteString(" ")
-			builder.WriteString(shell.Cyan(shell.Bold, b.LogType))
+			continue
 		}
-	}
 
-	callStacks := b.Extra["callstacks"]
-	delete(b.Extra, "callstacks")
+		if m.Name == "CallStacks" {
+			callStacksList, ok := v.([]any)
+			if ok && len(callStacksList) > 0 {
+				builder.WriteString("\n")
+				for _, vi := range callStacksList {
+					vStr := cast.String(vi)
+					postfix := ""
+					if pos := strings.LastIndexByte(vStr, '/'); pos != -1 {
+						postfix = vStr[pos+1:]
+						vStr = vStr[:pos+1]
+					} else {
+						postfix = vStr
+						vStr = ""
+					}
+					builder.WriteString(" ")
+					builder.WriteString(shell.Style(shell.Dim, vStr))
+					builder.WriteString(shell.Style(shell.TextWhite, postfix))
+					builder.WriteString("\n")
+				}
+			}
+			continue
+		}
 
-	if b.Extra != nil {
-		for k, v := range b.Extra {
-			vStr := ""
-			if v == nil {
+		// Handle normal fields
+		vStr := ""
+		if m.Format == "time" {
+			// Convert int64 ns to time string
+			logTime := time.Unix(0, cast.Int64(v))
+			vStr = logTime.Format("01-02 15:04:05.000")
+			if m.Color == "" {
+				builder.WriteString(shell.White(shell.Bold, vStr))
+				builder.WriteString(" ")
 				continue
 			}
-			switch v.(type) {
-			case map[string]any, []any:
-				vStr, _ = cast.ToJSON(v)
-			default:
-				vStr = cast.String(v)
-			}
-
-			if k == "extra" && len(vStr) > 0 && vStr[0] == '{' {
-				extra, err := cast.ToMap[string, any](vStr)
-				if err == nil {
-					for k2, v2 := range extra {
-						builder.WriteString("  ")
-						builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k2+":"))
-						builder.WriteString(cast.String(v2))
-					}
-				}
-			} else {
-				builder.WriteString("  ")
-				builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k+":"))
-				builder.WriteString(vStr)
+		} else {
+			vStr = cast.String(v)
+			if vStr == "" {
+				continue
 			}
 		}
+
+		if builder.Len() > 0 {
+			builder.WriteString(" ")
+		}
+
+		if !m.WithoutKey {
+			builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, m.Name+":"))
+		}
+
+		builder.WriteString(applyColor(vStr, m.Color))
 	}
 
-	if callStacks != nil {
-		var callStacksList []any
-		switch cs := callStacks.(type) {
-		case string:
-			if len(cs) > 2 && cs[0] == '[' {
-				_ = json.Unmarshal([]byte(cs), &callStacksList)
-			}
-		case []any:
-			callStacksList = cs
-		}
+	return builder.String()
+}
 
-		if len(callStacksList) > 0 {
-			builder.WriteString("\n")
-			for _, vi := range callStacksList {
-				v := cast.String(vi)
-				postfix := ""
-				if pos := strings.LastIndexByte(v, '/'); pos != -1 {
-					postfix = v[pos+1:]
-					v = v[:pos+1]
-				} else {
-					postfix = v
-					v = ""
-				}
-				builder.WriteString(" ")
-				builder.WriteString(shell.Style(shell.Dim, v))
-				builder.WriteString(shell.Style(shell.TextWhite, postfix))
-				builder.WriteString("\n")
-			}
+func applyColor(text string, color string) string {
+	switch color {
+	case "red":
+		return shell.Red(text)
+	case "cyan":
+		return shell.Cyan(text)
+	case "blue":
+		return shell.Blue(text)
+	case "magenta":
+		return shell.Magenta(text)
+	case "yellow":
+		return shell.Yellow(text)
+	case "green":
+		return shell.Green(text)
+	case "gray", "darkGray":
+		return shell.Style(shell.Dim, text)
+	default:
+		return text
+	}
+}
+
+func fallbackRenderArray(arr []any) string {
+	var builder strings.Builder
+	for i, v := range arr {
+		if i > 0 {
+			builder.WriteString(" ")
 		}
+		builder.WriteString(cast.String(v))
 	}
 	return builder.String()
 }

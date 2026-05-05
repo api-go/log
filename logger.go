@@ -17,7 +17,6 @@ type Logger struct {
 	goLogger        *log.Logger
 	file            *FileWriter
 	writer          Writer
-	formatter       Formatter
 	truncations     []string
 	sensitive       map[string]bool
 	sensitiveKeys   []string
@@ -61,10 +60,6 @@ func NewLogger(conf Config) *Logger {
 
 	logger := Logger{
 		truncations: cast.Split(conf.Truncations, ","),
-		formatter:   conf.Formatter,
-	}
-	if logger.formatter == nil {
-		logger.formatter = &JSONFormatter{}
 	}
 
 	if len(conf.Sensitive) > 0 {
@@ -165,17 +160,15 @@ func (logger *Logger) Log(entry LogEntry) {
 }
 
 func (logger *Logger) asyncWrite(entry LogEntry) {
-	buf, err := logger.formatter.Format(entry, logger.sensitiveKeys)
-
-	if err == nil {
-		logger.writeBuf(buf)
-	}
+	buf := ToArrayBytes(entry, logger.sensitiveKeys)
+	logger.writeBuf(entry, buf)
 	PutEntry(entry)
 }
 
-func (logger *Logger) writeBuf(buf []byte) {
+func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
 	if writerRunning.Load() {
 		WriteAsync(logPayload{
+			entry:  entry,
 			buf:    buf,
 			writer: logger.writer,
 			file:   logger.file,
@@ -184,7 +177,7 @@ func (logger *Logger) writeBuf(buf []byte) {
 	}
 
 	if logger.writer != nil {
-		logger.writer.Log(buf)
+		logger.writer.Log(entry, buf)
 	} else if logger.file != nil {
 		fmt.Println(Viewable(string(buf)))
 	} else if logger.goLogger == nil {
@@ -206,10 +199,16 @@ func (logger *Logger) FillBase(entry LogEntry, logType string) {
 	}
 	base.LogTime = time.Now().UnixNano()
 	base.TraceId = logger.traceId
-	base.ImageName = dockerImageName
-	base.ImageTag = dockerImageTag
-	base.ServerName = serverName
-	base.ServerIp = serverIp
+	if dockerImageTag != "" {
+		base.Image = dockerImageName + ":" + dockerImageTag
+	} else {
+		base.Image = dockerImageName
+	}
+	if serverIp != "" {
+		base.Server = serverName + ":" + serverIp
+	} else {
+		base.Server = serverName
+	}
 }
 
 func (logger *Logger) FillDebug(entry *DebugLog, message string) {

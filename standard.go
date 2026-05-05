@@ -27,15 +27,13 @@ type LogEntry interface {
 }
 
 type BaseLog struct {
-	LogName    string
-	LogType    string
-	LogTime    int64
-	TraceId    string
-	ImageName  string
-	ImageTag   string
-	ServerName string
-	ServerIp   string
-	Extra      map[string]any
+	LogName string         `log:"pos:1,color:cyan,hide:true"`
+	LogType string         `log:"pos:2,color:magenta,hide:true"`
+	LogTime int64          `log:"pos:3,format:time"`
+	TraceId string         `log:"pos:4,color:blue"`
+	Image   string         `log:"pos:5,color:darkGray,hide:true"`
+	Server  string         `log:"pos:6,color:darkGray,hide:true"`
+	Extra   map[string]any `log:"pos:99"`
 }
 
 func (b *BaseLog) IsLogEntry() bool {
@@ -48,22 +46,29 @@ func (b *BaseLog) GetBaseLog() *BaseLog {
 
 type DebugLog struct {
 	BaseLog
-	Debug string
+	Debug string `log:"pos:9,withoutkey:true"` // white
 }
 
 type InfoLog struct {
 	BaseLog
-	Info string
+	Info string `log:"pos:9,color:cyan,withoutkey:true"`
 }
 
 type WarningLog struct {
 	BaseLog
-	Warning    string
-	CallStacks []string
+	Warning    string   `log:"pos:9,color:yellow,withoutkey:true"`
+	CallStacks []string `log:"pos:98"`
 }
 
 type ErrorLog struct {
 	BaseLog
-	Error      string
-	CallStacks []string
+	Error      string   `log:"pos:9,color:red,withoutkey:true"`
+	CallStacks []string `log:"pos:98"`
+}
+
+func init() {
+	RegisterType(LogTypeDebug, DebugLog{})
+	RegisterType(LogTypeInfo, InfoLog{})
+	RegisterType(LogTypeWarning, WarningLog{})
+	RegisterType(LogTypeError, ErrorLog{})
 }

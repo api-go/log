@@ -9,7 +9,6 @@ require (
 )
 
 require (
-	apigo.cc/go/convert v1.0.4 // indirect
 	apigo.cc/go/encoding v1.0.4 // indirect
 	apigo.cc/go/file v1.0.5 // indirect
 	apigo.cc/go/rand v1.0.4 // indirect

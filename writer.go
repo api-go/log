@@ -9,12 +9,13 @@ import (
 
 // Writer 日志写入接口
 type Writer interface {
-	Log([]byte)
+	Log(LogEntry, []byte)
 	Run()
 }
 
 // logPayload 包含路由信息的包裹
 type logPayload struct {
+	entry  LogEntry
 	buf    []byte
 	writer Writer      // 目标自定义 Writer
 	file   *FileWriter // 目标文件 Writer
@@ -32,7 +33,7 @@ var (
 type ConsoleWriter struct {
 }
 
-func (w *ConsoleWriter) Log(data []byte) {
+func (w *ConsoleWriter) Log(entry LogEntry, data []byte) {
 	fmt.Println(Viewable(string(data)))
 }
 
@@ -129,7 +130,7 @@ func writerRunner() {
 func processLog(payload logPayload) {
 	// 精准路由：根据包裹信息决定写入目标
 	if payload.writer != nil {
-		payload.writer.Log(payload.buf)
+		payload.writer.Log(payload.entry, payload.buf)
 	} else if payload.file != nil {
 		payload.file.Write(time.Now(), payload.buf)
 	}
