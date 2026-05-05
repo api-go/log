@@ -1,13 +1,13 @@
 package log
 
 import (
-	"encoding/json"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"apigo.cc/go/file"
 )
 
 // MetaField describes the serialization and visualization metadata for a single log field.
@@ -25,6 +25,13 @@ var (
 	metaLock     sync.RWMutex
 	metaFilePath = ".log.meta.json"
 )
+
+// LoadMeta loads metadata from the specified file into the global registry.
+func LoadMeta(path string) error {
+	metaLock.Lock()
+	defer metaLock.Unlock()
+	return file.UnmarshalFile(path, &metaRegistry)
+}
 
 // RegisterType registers a log model's metadata into the global registry.
 // logType is the string identifier (e.g. "info", "error").
@@ -192,17 +199,8 @@ func flattenStructFields(t reflect.Type, result *[]reflect.StructField, parentIn
 
 func syncMetaFile() {
 	metaLock.RLock()
-	data, err := json.MarshalIndent(metaRegistry, "", "  ")
-	metaLock.RUnlock()
-
-	if err != nil {
-		return
-	}
-
-	// Determine the path. If running in tests or from another dir, it might be better
-	// to allow setting the meta file path, but for now we write to current working dir.
-	// You could also write to executable dir.
-	_ = os.WriteFile(metaFilePath, append(data, '\n'), 0644)
+	defer metaLock.RUnlock()
+	_ = file.MarshalFilePretty(metaFilePath, metaRegistry)
 }
 
 // SetMetaFilePath allows changing the path for testing or configuration purposes

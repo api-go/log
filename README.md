@@ -39,19 +39,24 @@ logger.Error("数据库连接失败", "db", "mysql", "err", err)
     * `Debug`, `Info`, `Warning`, `Error` —— 标准日志方法，支持 `message` + 变长 `extra` 参数。
 
 2.  **通用记录 (`Log`)**
-    * `Log(LogEntry)` —— 记录自定义结构的日志。注意：仅支持实现 `LogEntry` 接口的类型（即嵌入了 `BaseLog` 的结构体）。
+    * `Log(LogEntry)` —— 记录自定义结构的日志。注意：仅支持实现 `LogEntry` 接口的类型。
 
 3.  **独立可视化工具 (`logv`)**
-    * 在项目根目录下运行 `go run apigo.cc/go/log/logv` 或将其编译为二进制。该工具从 `stdin` 读取 JSON 数组日志，并根据当前目录的 `.log.meta.json` 自动渲染为带颜色和格式化的彩色文本。
+    *   **安装**：
+        ```bash
+        go install apigo.cc/go/log/logv@latest
+        ```
+    *   **使用**：`tail -f app.log | logv` `tail -f app.log | logv -json`，依赖当前目录的 `.log.meta.json` 文件。
 
 ### 自定义日志扩展
 
 如果标准日志分级不能满足业务需求，可以轻松扩展自定义日志类型：
 
-1.  **定义结构体**：必须嵌入 `log.BaseLog`。
-2.  **标注位置与样式**：使用 `log:"pos:N,color:xxx,hide:true"` 标签定义字段在数组中的位置及在 `logv` 中的显示样式。
+1.  **定义结构体**：必须嵌入 `log.BaseLog` 或 `log.ErrorLog` 等结构体以实现 `LogEntry` 接口。
+2.  **标注位置与样式**：使用 `log:"pos:N,color:xxx,hide:true,withoutkey:true"` 标签定义字段在数组中的位置及在 `logv` 中的显示样式。
 3.  **注册模型**：在 `init()` 中调用 `log.RegisterType("my-type", MyLog{})`。
 4.  **获取与发送**：使用 `log.GetEntry[MyLog]()` 并调用 `logger.Log(entry)`。
+5.  **参考示例**: log/extra.go。
 
 ```go
 type BusinessLog struct {
@@ -66,7 +71,7 @@ func init() {
 
 func LogBusiness(logger *log.Logger, action, userId string) {
     entry := log.GetEntry[BusinessLog]()
-    entry.LogType = "business"
+    logger.FillBase(&entry.BaseLog, "business")
     entry.Action = action
     entry.UserId = userId
     logger.Log(entry) 
@@ -78,7 +83,14 @@ func LogBusiness(logger *log.Logger, action, userId string) {
 *   `Name`: 应用名称。
 *   `Level`: 日志级别 (`debug`, `info`, `warning`, `error`)。
 *   `File`: 输出目标（支持 `console` 或 `es://` 地址）。
-*   `Sensitive`, `RegexSensitive`: 脱敏配置。
+*   `SplitTag`: 文件切分标识（仅在输出到文件时有效）。
+*   `Truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
+*   `Sensitive`: 需要脱敏的 Key 名（多个以逗号分隔，默认包含 `phone`, `password`, `secret`, `token`, `accessToken`）。
+*   `RegexSensitive`: 正则表达式脱敏规则。
+*   `SensitiveRule`: 脱敏展示规则 (例如 `12:4*4` 表示长度为12时保留前4后4，中间打码)。
+*   `KeepKeyCase`: 是否保持 `Extra` 字段中 Key 的原始大小写。默认一律转换为小写以确保搜索一致性。
+*   `Fast`: (保留字段) 是否开启极速模式。目前已通过架构优化默认实现极速写入。
+
 
 ## 🧪 验证状态
 测试全部通过，异步写入与性能达标。

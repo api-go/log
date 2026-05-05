@@ -55,7 +55,7 @@ package log
 // 	}
 
 // 	entry := GetEntry[RequestLog]()
-// 	logger.fillBase(entry, LogTypeRequest)
+// 	logger.FillBase(&entry.BaseLog, LogTypeRequest)
 
 // 	// 暴力平铺赋值，性能极高
 // 	entry.Method = method
@@ -116,7 +116,7 @@ package log
 // func (logger *Logger) Task(taskName string, usedTime float32, success bool, message string, extra ...any) {
 // 	if logger.CheckLevel(INFO) {
 // 		entry := GetEntry[TaskLog]()
-// 		logger.fillBase(entry, LogTypeTask)
+// 		logger.FillBase(&entry.BaseLog, LogTypeTask)
 // 		entry.Task = taskName
 // 		entry.UsedTime = usedTime
 // 		entry.Success = success
@@ -131,7 +131,7 @@ package log
 // func (logger *Logger) Monitor(target string, status int, message string, extra ...any) {
 // 	if logger.CheckLevel(INFO) {
 // 		entry := GetEntry[MonitorLog]()
-// 		logger.fillBase(entry, LogTypeMonitor)
+// 		logger.FillBase(&entry.BaseLog, LogTypeMonitor)
 // 		entry.Target = target
 // 		entry.Status = status
 // 		entry.Message = message
@@ -145,7 +145,7 @@ package log
 // func (logger *Logger) Statistic(category, item string, value float64, extra ...any) {
 // 	if logger.CheckLevel(INFO) {
 // 		entry := GetEntry[StatisticLog]()
-// 		logger.fillBase(entry, LogTypeStatistic)
+// 		logger.FillBase(&entry.BaseLog, LogTypeStatistic)
 // 		entry.Category = category
 // 		entry.Item = item
 // 		entry.Value = value

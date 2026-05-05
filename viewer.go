@@ -1,7 +1,6 @@
 package log
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -31,7 +30,7 @@ func Viewable(line string) string {
 	}
 
 	var arr []any
-	if err := json.Unmarshal([]byte(line), &arr); err != nil {
+	if err := cast.UnmarshalJSON([]byte(line), &arr); err != nil {
 		return line
 	}
 
@@ -69,7 +68,7 @@ func Viewable(line string) string {
 		if m.Hide {
 			continue
 		}
-		
+
 		if m.Name == "Extra" {
 			extraMap, ok := v.(map[string]any)
 			if ok && len(extraMap) > 0 {
@@ -142,6 +141,50 @@ func Viewable(line string) string {
 	}
 
 	return builder.String()
+}
+
+// ToJSON converts a JSON array log line to a standard JSON object string based on metadata.
+func ToJSON(line string) string {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "[") {
+		return line
+	}
+
+	var arr []any
+	if err := cast.UnmarshalJSON([]byte(line), &arr); err != nil {
+		return line
+	}
+
+	if len(arr) < 3 {
+		return line
+	}
+
+	logType := cast.String(arr[1])
+	meta := GetMeta(logType)
+	if len(meta) == 0 {
+		return line
+	}
+
+	result := make(map[string]any)
+	for i, v := range arr {
+		if i < len(meta) {
+			m := meta[i]
+			if m.Name == "Extra" {
+				if extraMap, ok := v.(map[string]any); ok {
+					for k, ev := range extraMap {
+						result[k] = ev
+					}
+				}
+			} else {
+				result[m.Name] = v
+			}
+		} else {
+			result[fmt.Sprintf("Extra%d", i)] = v
+		}
+	}
+
+	jsonStr, _ := cast.ToJSON(result)
+	return jsonStr
 }
 
 func applyColor(text string, color string) string {

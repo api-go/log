@@ -187,8 +187,7 @@ func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
 	}
 }
 
-func (logger *Logger) FillBase(entry LogEntry, logType string) {
-	base := entry.GetBaseLog()
+func (logger *Logger) FillBase(base *BaseLog, logType string) {
 	if base == nil {
 		return
 	}
@@ -212,23 +211,23 @@ func (logger *Logger) FillBase(entry LogEntry, logType string) {
 }
 
 func (logger *Logger) FillDebug(entry *DebugLog, message string) {
-	logger.FillBase(entry, LogTypeDebug)
+	logger.FillBase(&entry.BaseLog, LogTypeDebug)
 	entry.Debug = message
 }
 
 func (logger *Logger) FillInfo(entry *InfoLog, message string) {
-	logger.FillBase(entry, LogTypeInfo)
+	logger.FillBase(&entry.BaseLog, LogTypeInfo)
 	entry.Info = message
 }
 
 func (logger *Logger) FillWarning(entry *WarningLog, message string) {
-	logger.FillBase(entry, LogTypeWarning)
+	logger.FillBase(&entry.BaseLog, LogTypeWarning)
 	entry.Warning = message
 	entry.CallStacks = getCallStacks(logger.truncations)
 }
 
 func (logger *Logger) FillError(entry *ErrorLog, message string) {
-	logger.FillBase(entry, LogTypeError)
+	logger.FillBase(&entry.BaseLog, LogTypeError)
 	entry.Error = message
 	entry.CallStacks = getCallStacks(logger.truncations)
 }
