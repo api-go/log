@@ -161,11 +161,6 @@ func NewLogger(conf Config) *Logger {
 }
 
 func (logger *Logger) Log(entry LogEntry) {
-	// 如果是自动生成的 LogType（如 Debug/Info/Warning/Error 对应的类型），这里通常已经在方法内 fillBase 了
-	// 但对于像 discover.Log 这样直接调用 Log(entry) 的，需要在这里补全
-	if entry.GetBaseLog().LogTime == 0 {
-		logger.fillBase(entry, "")
-	}
 	logger.asyncWrite(entry)
 }
 
@@ -199,7 +194,7 @@ func (logger *Logger) writeBuf(buf []byte) {
 	}
 }
 
-func (logger *Logger) fillBase(entry LogEntry, logType string) {
+func (logger *Logger) FillBase(entry LogEntry, logType string) {
 	base := entry.GetBaseLog()
 	if base == nil {
 		return
@@ -217,6 +212,28 @@ func (logger *Logger) fillBase(entry LogEntry, logType string) {
 	base.ServerIp = serverIp
 }
 
+func (logger *Logger) FillDebug(entry *DebugLog, message string) {
+	logger.FillBase(entry, LogTypeDebug)
+	entry.Debug = message
+}
+
+func (logger *Logger) FillInfo(entry *InfoLog, message string) {
+	logger.FillBase(entry, LogTypeInfo)
+	entry.Info = message
+}
+
+func (logger *Logger) FillWarning(entry *WarningLog, message string) {
+	logger.FillBase(entry, LogTypeWarning)
+	entry.Warning = message
+	entry.CallStacks = getCallStacks(logger.truncations)
+}
+
+func (logger *Logger) FillError(entry *ErrorLog, message string) {
+	logger.FillBase(entry, LogTypeError)
+	entry.Error = message
+	entry.CallStacks = getCallStacks(logger.truncations)
+}
+
 func (logger *Logger) GetCallStacks() []string {
 	return getCallStacks(logger.truncations)
 }
@@ -224,8 +241,7 @@ func (logger *Logger) GetCallStacks() []string {
 func (logger *Logger) Debug(message string, extra ...any) {
 	if logger.CheckLevel(DEBUG) {
 		entry := GetEntry[DebugLog]()
-		logger.fillBase(entry, LogTypeDebug)
-		entry.Debug = message
+		logger.FillDebug(entry, message)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}
@@ -236,8 +252,7 @@ func (logger *Logger) Debug(message string, extra ...any) {
 func (logger *Logger) Info(message string, extra ...any) {
 	if logger.CheckLevel(INFO) {
 		entry := GetEntry[InfoLog]()
-		logger.fillBase(entry, LogTypeInfo)
-		entry.Info = message
+		logger.FillInfo(entry, message)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}
@@ -248,9 +263,7 @@ func (logger *Logger) Info(message string, extra ...any) {
 func (logger *Logger) Warning(message string, extra ...any) {
 	if logger.CheckLevel(WARNING) {
 		entry := GetEntry[WarningLog]()
-		logger.fillBase(entry, LogTypeWarning)
-		entry.Warning = message
-		entry.CallStacks = getCallStacks(logger.truncations)
+		logger.FillWarning(entry, message)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}
@@ -261,9 +274,7 @@ func (logger *Logger) Warning(message string, extra ...any) {
 func (logger *Logger) Error(message string, extra ...any) {
 	if logger.CheckLevel(ERROR) {
 		entry := GetEntry[ErrorLog]()
-		logger.fillBase(entry, LogTypeError)
-		entry.Error = message
-		entry.CallStacks = getCallStacks(logger.truncations)
+		logger.FillError(entry, message)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
 		}

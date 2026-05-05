@@ -47,6 +47,7 @@ func TestDesensitization(t *testing.T) {
 	}
 
 	entry := log.GetEntry[MyLog]()
+	logger.FillBase(entry, "test")
 	entry.Phone = "13812345678"
 	logger.Log(entry) // 应该在输出中脱敏
 }
@@ -57,7 +58,7 @@ func TestDBLog(t *testing.T) {
 	})
 
 	entry := log.GetEntry[DBEntry]()
-	entry.LogType = "db"
+	logger.FillBase(entry, "db")
 	entry.DbType = "mysql"
 	entry.Query = "SELECT * FROM users"
 	entry.UsedTime = 10.5
@@ -70,7 +71,7 @@ func TestRequestLog(t *testing.T) {
 	})
 
 	entry := log.GetEntry[RequestEntry]()
-	entry.LogType = "request"
+	logger.FillBase(entry, "request")
 	entry.Method = "GET"
 	entry.Path = "/api/user"
 	entry.ResponseCode = 200
