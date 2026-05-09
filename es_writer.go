@@ -77,9 +77,6 @@ func NewESWriter(conf *Config) Writer {
 }
 
 func (w *ESWriter) Log(entry LogEntry, data []byte) {
-	// data is array, but ES needs object
-	// convert entry to JSON object
-	// TODO: Consider desensitization here if needed, but for now ToJSONBytes
 	objBytes, err := cast.ToJSONBytes(entry)
 	if err != nil || len(objBytes) == 0 {
 		return

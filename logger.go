@@ -8,18 +8,19 @@ import (
 	"time"
 
 	"apigo.cc/go/cast"
+	"apigo.cc/go/id"
 )
 
 type Logger struct {
-	config      Config
-	level       LevelType
-	goLogger    *log.Logger
-	file        *FileWriter
-	writer      Writer
-	truncations []string
-	sensitive   map[string]bool
+	config        Config
+	level         LevelType
+	goLogger      *log.Logger
+	file          *FileWriter
+	writer        Writer
+	truncations   []string
+	sensitive     map[string]bool
 	sensitiveKeys []string
-	traceId     string
+	traceId       string
 }
 
 var (
@@ -47,6 +48,7 @@ func NewLogger(conf Config) *Logger {
 
 	logger := Logger{
 		truncations: cast.Split(conf.Truncations, ","),
+		traceId:     id.MakeID(10),
 	}
 
 	if len(conf.Sensitive) > 0 {

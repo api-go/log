@@ -34,16 +34,20 @@ func Viewable(line string) string {
 		return line
 	}
 
-	if len(arr) < 3 {
-		return line // At least Name, Type, Time
+	if len(arr) < 2 {
+		return line
 	}
 
-	logType := cast.String(arr[1])
-	if logType == "" {
-		logType = "undefined"
+	logType := ""
+	if len(arr) > 2 {
+		logType = cast.String(arr[2])
 	}
-
 	meta := GetMeta(logType)
+	if len(meta) == 0 {
+		logType = cast.String(arr[1])
+		meta = GetMeta(logType)
+	}
+
 	if len(meta) == 0 {
 		// Fallback rendering
 		return fallbackRenderArray(arr)
@@ -52,7 +56,7 @@ func Viewable(line string) string {
 	var builder strings.Builder
 
 	for i, v := range arr {
-		if v == nil {
+		if v == nil || cast.String(v) == "0" { // 0 is gap
 			continue
 		}
 		if i >= len(meta) {
@@ -65,7 +69,7 @@ func Viewable(line string) string {
 
 		m := meta[i]
 
-		if m.Hide {
+		if m.Hide || m.Name == "" {
 			continue
 		}
 
@@ -155,12 +159,20 @@ func ToJSON(line string) string {
 		return line
 	}
 
-	if len(arr) < 3 {
+	if len(arr) < 2 {
 		return line
 	}
 
-	logType := cast.String(arr[1])
+	logType := ""
+	if len(arr) > 2 {
+		logType = cast.String(arr[2])
+	}
 	meta := GetMeta(logType)
+	if len(meta) == 0 {
+		logType = cast.String(arr[1])
+		meta = GetMeta(logType)
+	}
+
 	if len(meta) == 0 {
 		return line
 	}
@@ -169,6 +181,9 @@ func ToJSON(line string) string {
 	for i, v := range arr {
 		if i < len(meta) {
 			m := meta[i]
+			if m.Name == "" {
+				continue
+			}
 			if m.Name == "Extra" {
 				if extraMap, ok := v.(map[string]any); ok {
 					for k, ev := range extraMap {
@@ -178,7 +193,7 @@ func ToJSON(line string) string {
 			} else {
 				result[m.Name] = v
 			}
-		} else {
+		} else if cast.String(v) != "0" {
 			result[fmt.Sprintf("Extra%d", i)] = v
 		}
 	}

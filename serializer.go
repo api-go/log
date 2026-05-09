@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"apigo.cc/go/cast"
@@ -39,43 +40,50 @@ func getAccessors(logType string, model any) []fieldAccessor {
 		t = t.Elem()
 	}
 
-	var flatFields []reflect.StructField
+	var flatFields []fieldInfo
 	flattenStructFields(t, &flatFields, nil)
 
-	var extraField *reflect.StructField
-	var callStacksField *reflect.StructField
-	var regularFields []reflect.StructField
-
+	// Determine final indices (must match meta.go)
+	maxLiteralPos := -1
+	var highPosFields []fieldInfo
 	for _, f := range flatFields {
-		if f.Name == "Extra" {
-			extraField = &f
-			continue
+		if f.pos < 1000 {
+			if f.pos > maxLiteralPos {
+				maxLiteralPos = f.pos
+			}
+		} else {
+			highPosFields = append(highPosFields, f)
 		}
-		if f.Name == "CallStacks" {
-			callStacksField = &f
-			continue
-		}
-		regularFields = append(regularFields, f)
 	}
 
-	var finalFields []reflect.StructField
-	finalFields = append(finalFields, regularFields...)
-	if callStacksField != nil {
-		finalFields = append(finalFields, *callStacksField)
+	// Sort high pos fields by their pos
+	sort.Slice(highPosFields, func(i, j int) bool {
+		return highPosFields[i].pos < highPosFields[j].pos
+	})
+
+	finalPosMap := make(map[string]int)
+	for _, f := range flatFields {
+		if f.pos < 1000 {
+			finalPosMap[f.field.Name] = f.pos
+		}
 	}
-	if extraField != nil {
-		finalFields = append(finalFields, *extraField)
+	nextPos := maxLiteralPos + 1
+	for _, f := range highPosFields {
+		finalPosMap[f.field.Name] = nextPos
+		nextPos++
 	}
 
-	var accessors []fieldAccessor
-	for _, f := range finalFields {
-		if f.Tag.Get("log") == "-" {
+	maxPos := nextPos - 1
+	accessors := make([]fieldAccessor, maxPos+1)
+	for _, f := range flatFields {
+		if f.field.Tag.Get("log") == "-" {
 			continue
 		}
-		accessors = append(accessors, fieldAccessor{
-			indexPath: f.Index,
-			name:      f.Name,
-		})
+		realPos := finalPosMap[f.field.Name]
+		accessors[realPos] = fieldAccessor{
+			indexPath: f.field.Index,
+			name:      f.field.Name,
+		}
 	}
 
 	accessorsCache[logType] = accessors
@@ -107,6 +115,11 @@ func ToArrayBytes(entry LogEntry, sensitiveKeys []string) []byte {
 	for i, acc := range accessors {
 		if i > 0 {
 			buf.WriteByte(',')
+		}
+
+		if acc.indexPath == nil {
+			buf.WriteByte('0')
+			continue
 		}
 
 		fv := v.FieldByIndex(acc.indexPath)

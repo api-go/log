@@ -36,6 +36,26 @@ func LoadMeta(path string) error {
 // RegisterType registers a log model's metadata into the global registry.
 // logType is the string identifier (e.g. "info", "error").
 func RegisterType(logType string, model any) {
+	t := reflect.TypeOf(model)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	// 强制检查 Reset 方法是否被显式实现（防止继承 BaseLog 后忘记重置业务字段）
+	if t.Kind() == reflect.Struct {
+		ptrType := reflect.PointerTo(t)
+		method, ok := ptrType.MethodByName("Reset")
+		if !ok {
+			panic("log model must implement Reset() method: " + t.Name())
+		}
+		
+		// 检查该方法是否属于当前类型（而不是继承自 BaseLog 且没有被重写）
+		baseResetMethod, _ := reflect.PointerTo(reflect.TypeOf(BaseLog{})).MethodByName("Reset")
+		if method.Func.Pointer() == baseResetMethod.Func.Pointer() {
+			panic("log model must override Reset() method to clear its own fields: " + t.Name())
+		}
+	}
+
 	fields := extractMetaFields(model)
 
 	metaLock.Lock()
@@ -52,7 +72,7 @@ func GetMeta(logType string) []MetaField {
 	return metaRegistry[logType]
 }
 
-// fieldInfo is used internally for sorting fields before flattening.
+// fieldInfo is used internally for storing fields with their absolute position.
 type fieldInfo struct {
 	field reflect.StructField
 	pos   int
@@ -68,46 +88,57 @@ func extractMetaFields(model any) []MetaField {
 		return nil
 	}
 
-	var flatFields []reflect.StructField
+	var flatFields []fieldInfo
 	flattenStructFields(t, &flatFields, nil)
 
-	var metaFields []MetaField
-	var extraField *reflect.StructField
-	var callStacksField *reflect.StructField
-
-	// Process fields, separating Extra and CallStacks
-	var regularFields []reflect.StructField
+	// Determine final indices
+	maxLiteralPos := -1
+	var highPosFields []fieldInfo
 	for _, f := range flatFields {
-		if f.Name == "Extra" {
-			extraField = &f
-			continue
+		if f.pos < 1000 {
+			if f.pos > maxLiteralPos {
+				maxLiteralPos = f.pos
+			}
+		} else {
+			highPosFields = append(highPosFields, f)
 		}
-		if f.Name == "CallStacks" {
-			callStacksField = &f
-			continue
-		}
-		regularFields = append(regularFields, f)
 	}
 
-	// Reassemble: regular fields -> CallStacks -> Extra
-	var finalFields []reflect.StructField
-	finalFields = append(finalFields, regularFields...)
-	if callStacksField != nil {
-		finalFields = append(finalFields, *callStacksField)
+	// Sort high pos fields by their pos
+	sort.Slice(highPosFields, func(i, j int) bool {
+		return highPosFields[i].pos < highPosFields[j].pos
+	})
+
+	// Assign real indices to high pos fields
+	finalPosMap := make(map[string]int)
+	for _, f := range flatFields {
+		if f.pos < 1000 {
+			finalPosMap[f.field.Name] = f.pos
+		}
 	}
-	if extraField != nil {
-		finalFields = append(finalFields, *extraField)
+	nextPos := maxLiteralPos + 1
+	for _, f := range highPosFields {
+		finalPosMap[f.field.Name] = nextPos
+		nextPos++
 	}
 
-	for i, f := range finalFields {
-		tag := f.Tag.Get("log")
+	maxPos := nextPos - 1
+	metaFields := make([]MetaField, maxPos+1)
+	// Initialize with empty MetaFields having Index set
+	for i := range metaFields {
+		metaFields[i] = MetaField{Index: i}
+	}
+
+	for _, f := range flatFields {
+		tag := f.field.Tag.Get("log")
 		if tag == "-" {
 			continue
 		}
 
+		realPos := finalPosMap[f.field.Name]
 		meta := MetaField{
-			Index: i,
-			Name:  f.Name,
+			Index: realPos,
+			Name:  f.field.Name,
 		}
 
 		if tag != "" {
@@ -132,38 +163,31 @@ func extractMetaFields(model any) []MetaField {
 		}
 		// Apply some default visual rules if not specified
 		// LogType shouldn't show the key in standard console
-		if f.Name == "LogType" && meta.Color == "" {
+		if f.field.Name == "LogType" && meta.Color == "" {
 			meta.WithoutKey = true
 		}
-		
-		metaFields = append(metaFields, meta)
+
+		metaFields[realPos] = meta
 	}
 
 	return metaFields
 }
 
-func flattenStructFields(t reflect.Type, result *[]reflect.StructField, parentIndex []int) {
-	var infos []fieldInfo
-
+func flattenStructFields(t reflect.Type, result *[]fieldInfo, parentIndex []int) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		if !f.IsExported() && !f.Anonymous {
 			continue
 		}
 
-		isEmbeddedStruct := f.Anonymous && f.Type.Kind() == reflect.Struct
-		pos := 1000 + i // default position if not specified
-		if isEmbeddedStruct {
-			pos = i - 1000 // default to top priority for embedded structs
-		}
-
+		pos := 10 + i // default position if not specified
 		tag := f.Tag.Get("log")
 		if tag != "" {
 			parts := strings.Split(tag, ",")
 			for _, part := range parts {
 				kv := strings.SplitN(part, ":", 2)
 				if len(kv) == 2 && strings.TrimSpace(kv[0]) == "pos" {
-					if p := cast.To[int](strings.TrimSpace(kv[1])); p > 0 {
+					if p := cast.To[int](strings.TrimSpace(kv[1])); p >= 0 {
 						pos = p
 					}
 				}
@@ -176,23 +200,13 @@ func flattenStructFields(t reflect.Type, result *[]reflect.StructField, parentIn
 		fullIndex = append(fullIndex, i)
 		f.Index = fullIndex
 
-		infos = append(infos, fieldInfo{
-			field: f,
-			pos:   pos,
-		})
-	}
-
-	// Sort fields in the current struct level by pos
-	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].pos < infos[j].pos
-	})
-
-	for _, info := range infos {
-		if info.field.Anonymous && info.field.Type.Kind() == reflect.Struct {
-			// Embedded struct, extract its fields first (parent first)
-			flattenStructFields(info.field.Type, result, info.field.Index)
+		if f.Anonymous && f.Type.Kind() == reflect.Struct {
+			flattenStructFields(f.Type, result, f.Index)
 		} else {
-			*result = append(*result, info.field)
+			*result = append(*result, fieldInfo{
+				field: f,
+				pos:   pos,
+			})
 		}
 	}
 }

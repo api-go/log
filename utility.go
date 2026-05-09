@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -24,14 +25,24 @@ func init() {
 	dockerImageName = os.Getenv("DOCKER_IMAGE_NAME")
 	dockerImageTag = os.Getenv("DOCKER_IMAGE_TAG")
 	serverName, _ = os.Hostname()
-	addrs, err := net.InterfaceAddrs()
+
+	// 获取真实局域网 IP (UDP 8.8.8.8 伪拨号法)
+	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err == nil {
-		for _, a := range addrs {
-			if an, ok := a.(*net.IPNet); ok {
-				// 忽略 Docker 私有网段
-				if an.IP.IsGlobalUnicast() && !strings.HasPrefix(an.IP.To4().String(), "172.17.") {
-					serverIp = an.IP.To4().String()
-					break
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		serverIp = localAddr.IP.String()
+		_ = conn.Close()
+	}
+
+	if serverIp == "" {
+		addrs, err := net.InterfaceAddrs()
+		if err == nil {
+			for _, a := range addrs {
+				if an, ok := a.(*net.IPNet); ok {
+					if an.IP.IsGlobalUnicast() {
+						serverIp = an.IP.To4().String()
+						break
+					}
 				}
 			}
 		}
@@ -188,13 +199,8 @@ func GetDefaultName() string {
 		name = os.Getenv("discover_app")
 	}
 	if name == "" {
-		imageName := os.Getenv("DOCKER_IMAGE_NAME")
-		if imageName != "" {
-			parts := strings.Split(imageName, "/")
-			imageName = parts[len(parts)-1]
-			imageName = strings.SplitN(imageName, ":", 2)[0]
-			imageName = strings.SplitN(imageName, "#", 2)[0]
-			name = imageName
+		if info, ok := debug.ReadBuildInfo(); ok && info.Path != "" && info.Path != "command-line-arguments" {
+			name = path.Base(info.Path)
 		}
 	}
 	if name == "" {

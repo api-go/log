@@ -6,10 +6,10 @@ import (
 )
 
 type SerializerMockBaseLog struct {
-	LogName string `log:"pos:1"`
-	LogType string `log:"pos:2"`
-	LogTime int64  `log:"pos:3"`
-	TraceId string `log:"pos:4"`
+	LogName string `log:"pos:0"`
+	LogType string `log:"pos:1"`
+	LogTime int64  `log:"pos:2"`
+	TraceId string `log:"pos:3"`
 }
 
 func (b *SerializerMockBaseLog) IsLogEntry() bool {
@@ -17,15 +17,30 @@ func (b *SerializerMockBaseLog) IsLogEntry() bool {
 }
 
 func (b *SerializerMockBaseLog) GetBaseLog() *BaseLog {
-	// Return a dummy BaseLog just for interface satisfaction, 
-	// ToArrayBytes actually extracts LogType from here, so let's mock it.
 	return &BaseLog{LogType: b.LogType}
+}
+
+func (b *SerializerMockBaseLog) Reset() {
+	b.LogName = ""
+	b.LogType = ""
+	b.LogTime = 0
+	b.TraceId = ""
 }
 
 type SerializerMockInfoLog struct {
 	SerializerMockBaseLog
-	Message string `log:"pos:5"`
-	Extra   map[string]any
+	Message string `log:"pos:4"`
+	Extra   map[string]any `log:"pos:1000"`
+}
+
+func (l *SerializerMockInfoLog) Reset() {
+	l.SerializerMockBaseLog.Reset()
+	l.Message = ""
+	if l.Extra == nil {
+		l.Extra = make(map[string]any, 8)
+	} else {
+		clear(l.Extra)
+	}
 }
 
 func TestToArrayBytes(t *testing.T) {
@@ -46,14 +61,15 @@ func TestToArrayBytes(t *testing.T) {
 	
 	bytes := ToArrayBytes(entry, nil)
 	str := string(bytes)
+	t.Logf("Raw log: %s", str)
 	
-	// Expect format: ["test-app","mock_info_test",1620000000,"abc-123","Hello, World!",{"user_id":42}]
 	var arr []any
 	err := json.Unmarshal(bytes, &arr)
 	if err != nil {
 		t.Fatalf("failed to unmarshal generated array: %v, raw: %s", err, str)
 	}
 
+	// Indices: 0, 1, 2, 3, 4, 1000(mapped to 5). Total size 6.
 	if len(arr) != 6 {
 		t.Fatalf("expected 6 elements, got %d. raw: %s", len(arr), str)
 	}
@@ -77,7 +93,7 @@ func TestToArrayBytes(t *testing.T) {
 	
 	extraMap, ok := arr[5].(map[string]any)
 	if !ok {
-		t.Fatalf("expected arr[5] to be map[string]any, got %T", arr[5])
+		t.Fatalf("expected arr[5] to be map[string]any, got %T (value: %v)", arr[5], arr[5])
 	}
 	if extraMap["user_id"] != float64(42) {
 		t.Errorf("expected extraMap['user_id'] == 42, got %v", extraMap["user_id"])

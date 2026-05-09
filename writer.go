@@ -27,6 +27,7 @@ var (
 	writerStopChan chan bool
 	writers        atomic.Value // 存储 []Writer
 	logChannel     chan logPayload
+	droppedLogs    atomic.Uint64
 )
 
 // ConsoleWriter 控制台写入器
@@ -59,8 +60,20 @@ func WriteAsync(payload logPayload) {
 	select {
 	case logChannel <- payload:
 	default:
-		// 丢弃或处理过载，此处简单丢弃
+		// 丢弃或处理过载
+		dropped := droppedLogs.Add(1)
+		if dropped%1000 == 1 {
+			if DefaultLogger != nil {
+				// 注意：这里可能会产生递归调用，但 select default 保证了不会死锁
+				DefaultLogger.Error(fmt.Sprintf("log channel full, dropped %d logs", dropped))
+			}
+		}
 	}
+}
+
+// GetDroppedLogs 获取被丢弃的日志数量
+func GetDroppedLogs() uint64 {
+	return droppedLogs.Load()
 }
 
 // Start 启动写入器

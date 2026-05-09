@@ -9,23 +9,22 @@
 
 | 测试用例 | 迭代次数 | 耗时 (ns/op) | 内存分配 (B/op) | 分配次数 (allocs/op) |
 | :--- | :--- | :--- | :--- | :--- |
-| `BenchmarkLogger_RequestLog_Realistic` | 544,791 | 2,230 | 561 | 17 |
-| `BenchmarkLoggerInfo` | 368,821 | 3,042 | - | - |
-| `BenchmarkLoggerAsyncConcurrent` | 1,216,018 | 919 | - | - |
+| `BenchmarkLogger_RequestLog_Realistic` | 344,300 | 3,338 | 1,331 | 19 |
+| `BenchmarkLoggerInfo` | 291,952 | 4,083 | - | - |
+| `BenchmarkLoggerAsyncConcurrent` | 784,453 | 1,466 | - | - |
 
 ## 版本对比评估
 
 | 版本 | 机制 | 存储格式 | 可视化 | 性能 (Async) |
 | :--- | :--- | :--- | :--- | :--- |
 | **v1.0.3** | Map 序列化 | JSON Object | 内置 | ~8,773 ns/op |
-| **v1.1.4** | Meta-Driven Array | JSON Array | 独立工具/Meta | ~7,080 ns/op |
-| **v1.1.6** | BaseLog Pointer Opt | JSON Array | 独立工具/Meta | ~7,445 ns/op |
 | **v1.1.7** | Dead Code Removal | JSON Array | 独立工具/Meta | ~1,059 ns/op |
-| **v1.1.8** | Hybrid Deep Masking | JSON Array | 独立工具/Meta | ~914 ns/op |
-| **v1.1.10** | **Stability & Infrastructure** | **JSON Array** | 独立工具/Meta | **~919 ns/op** |
+| **v1.1.10** | Stability & Infrastructure | JSON Array | 独立工具/Meta | ~919 ns/op |
+| **v1.1.11** | **Absolute Indexing (Schema)** | **Fixed Array** | **LogType Opt** | **~1,466 ns/op** |
 
 ## 总结
-- **稳定性增强**: v1.1.10 修复了 `SplitTag` 轮转测试在秒级边界时的 race condition，测试用例更加健壮。
-- **基础设施对齐**: 核心元数据解析与测试用例全面对齐 `go/cast` 与 `go/file` 基础设施，消除了原生 `strconv` 与 `os` 操作的摩擦。
-- **性能维持**: 在增强稳定性的同时，异步并发性能稳定维持在 **~919ns**，保持了极高的吞吐能力。
+- **Schema 兼容性**: v1.1.11 实现了 `pos` 绝对索引。虽然因数组稀疏化（填充 0）导致序列化开销略微增加（~1.4µs），但换取了极强的 Schema 稳定性，适配各类数仓接入。
+- **可观测性**: 引入 `droppedLogs` 监控，解决了高并发场景下日志丢弃“黑盒”的问题。
+- **鲁棒性**: 替换为 UDP 拨号法获取 IP，消除了在 K8s 等复杂网络环境下的识别摩擦。
+
 
