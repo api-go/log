@@ -14,7 +14,7 @@ const LogTypeMonitor = "monitor"
 const LogTypeStatistic = "statistic"
 const LogTypeRequest = "request"
 
-const LogDefaultSensitive = "phone,password,secret,token,accessToken"
+const LogDefaultSensitive = "phone,password,secret,token,accessToken,authorization"
 const LogEnvLevel = "LOG_LEVEL"
 const LogEnvFile = "LOG_FILE"
 const LogEnvSensitive = "LOG_SENSITIVE"
