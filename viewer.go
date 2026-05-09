@@ -2,7 +2,9 @@ package log
 
 import (
 	"fmt"
+	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 
 var errorLineMatcher = regexp.MustCompile(`(\w+\.go:\d+)`)
 var codeFileMatcher = regexp.MustCompile(`(\w+?\.)(go|js)`)
+var workspaceRoot, _ = os.Getwd()
 
 func Viewable(line string) string {
 	line = strings.TrimSpace(line)
@@ -76,17 +79,16 @@ func Viewable(line string) string {
 		if m.Name == "Extra" {
 			extraMap, ok := v.(map[string]any)
 			if ok && len(extraMap) > 0 {
-				for k, ev := range extraMap {
+				keys := make([]string, 0, len(extraMap))
+				for k := range extraMap {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					ev := extraMap[k]
 					builder.WriteString("  ")
 					builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, k+":"))
-					vStr := ""
-					switch ev.(type) {
-					case map[string]any, []any:
-						vStr, _ = cast.ToJSON(ev)
-					default:
-						vStr = cast.String(ev)
-					}
-					builder.WriteString(vStr)
+					builder.WriteString(renderValue(ev, 0, ""))
 				}
 			}
 			continue
@@ -95,9 +97,18 @@ func Viewable(line string) string {
 		if m.Name == "CallStacks" {
 			callStacksList, ok := v.([]any)
 			if ok && len(callStacksList) > 0 {
+				stackColor := shell.TextRed
+				if strings.Contains(strings.ToLower(logType), "warn") {
+					stackColor = shell.TextYellow
+				}
+
 				builder.WriteString("\n")
 				for _, vi := range callStacksList {
 					vStr := cast.String(vi)
+					if workspaceRoot != "" {
+						vStr = strings.TrimPrefix(vStr, workspaceRoot)
+						vStr = strings.TrimPrefix(vStr, "/")
+					}
 					postfix := ""
 					if pos := strings.LastIndexByte(vStr, '/'); pos != -1 {
 						postfix = vStr[pos+1:]
@@ -108,7 +119,7 @@ func Viewable(line string) string {
 					}
 					builder.WriteString(" ")
 					builder.WriteString(shell.Style(shell.Dim, vStr))
-					builder.WriteString(shell.Style(shell.TextWhite, postfix))
+					builder.WriteString(shell.Style(stackColor, postfix))
 					builder.WriteString("\n")
 				}
 			}
@@ -120,28 +131,42 @@ func Viewable(line string) string {
 		if m.Format == "time" {
 			// Convert int64 ns to time string
 			logTime := time.Unix(0, cast.Int64(v))
-			vStr = logTime.Format("01-02 15:04:05.000")
-			if m.Color == "" {
-				builder.WriteString(shell.White(shell.Bold, vStr))
+			dateStr := logTime.Format("01-02")
+			timeStr := logTime.Format("15:04:05")
+			milliStr := logTime.Format(".000")
+
+			if builder.Len() > 0 {
 				builder.WriteString(" ")
-				continue
 			}
+			builder.WriteString(shell.Style(shell.Dim, dateStr))
+			builder.WriteString(" ")
+			builder.WriteString(shell.White(shell.Bold, timeStr))
+			builder.WriteString(shell.Style(shell.Dim, milliStr))
+			continue
 		} else {
-			vStr = cast.String(v)
+			vStr = renderValue(v, m.Precision, m.Color)
 			if vStr == "" {
 				continue
 			}
 		}
 
 		if builder.Len() > 0 {
-			builder.WriteString(" ")
+			if m.AttachBefore {
+				builder.WriteString(":")
+			} else {
+				builder.WriteString(" ")
+			}
 		}
 
-		if !m.WithoutKey {
-			builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, m.Name+":"))
+		if !m.WithoutKey && !m.AttachBefore {
+			name := m.KeyName
+			if name == "" {
+				name = m.Name
+			}
+			builder.WriteString(shell.Style(shell.TextWhite, shell.Dim, shell.Italic, name+":"))
 		}
 
-		builder.WriteString(applyColor(vStr, m.Color))
+		builder.WriteString(vStr)
 	}
 
 	return builder.String()
@@ -184,6 +209,12 @@ func ToJSON(line string) string {
 			if m.Name == "" {
 				continue
 			}
+
+			name := m.KeyName
+			if name == "" {
+				name = m.Name
+			}
+
 			if m.Name == "Extra" {
 				if extraMap, ok := v.(map[string]any); ok {
 					for k, ev := range extraMap {
@@ -191,7 +222,7 @@ func ToJSON(line string) string {
 					}
 				}
 			} else {
-				result[m.Name] = v
+				result[name] = v
 			}
 		} else if cast.String(v) != "0" {
 			result[fmt.Sprintf("Extra%d", i)] = v
@@ -216,7 +247,7 @@ func applyColor(text string, color string) string {
 		return shell.Yellow(text)
 	case "green":
 		return shell.Green(text)
-	case "gray", "darkGray":
+	case "gray":
 		return shell.Style(shell.Dim, text)
 	default:
 		return text
@@ -232,4 +263,62 @@ func fallbackRenderArray(arr []any) string {
 		builder.WriteString(cast.String(v))
 	}
 	return builder.String()
+}
+
+func renderValue(v any, precision int, color string) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case float32, float64:
+		vStr := ""
+		if precision > 0 {
+			vStr = fmt.Sprintf("%.*f", precision, cast.To[float64](v))
+		} else {
+			vStr = cast.String(v)
+		}
+		return applyColor(vStr, color)
+	case map[string]any:
+		if len(val) == 0 {
+			return ""
+		}
+		var parts []string
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			// Key is always dim, value is colored
+			vStr := renderValue(val[k], precision, color)
+			if vStr != "" {
+				parts = append(parts, fmt.Sprintf("%s:%s", shell.Style(shell.Dim, k), vStr))
+			}
+		}
+		if len(parts) == 0 {
+			return ""
+		}
+		return "[ " + strings.Join(parts, " ") + " ]"
+	case []any:
+		if len(val) == 0 {
+			return ""
+		}
+		var parts []string
+		for _, iv := range val {
+			vStr := renderValue(iv, precision, color)
+			if vStr != "" {
+				parts = append(parts, vStr)
+			}
+		}
+		if len(parts) == 0 {
+			return ""
+		}
+		return "[ " + strings.Join(parts, " ") + " ]"
+	default:
+		s := cast.String(v)
+		if s == "" {
+			return ""
+		}
+		return applyColor(s, color)
+	}
 }

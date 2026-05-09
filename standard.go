@@ -30,9 +30,9 @@ type BaseLog struct {
 	LogName string         `log:"pos:0,color:cyan,hide:true"`
 	LogType string         `log:"pos:1,color:magenta,hide:true"`
 	LogTime int64          `log:"pos:2,format:time"`
-	TraceId string         `log:"pos:3,color:blue"`
-	Image   string         `log:"pos:4,color:darkGray,hide:true"`
-	Server  string         `log:"pos:5,color:darkGray,hide:true"`
+	TraceId string         `log:"pos:3,color:gray,withoutkey:true"`
+	Image   string         `log:"pos:4,hide:true"`
+	Server  string         `log:"pos:5,hide:true"`
 	Extra   map[string]any `log:"pos:1000"`
 }
 

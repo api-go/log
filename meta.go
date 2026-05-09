@@ -12,12 +12,15 @@ import (
 
 // MetaField describes the serialization and visualization metadata for a single log field.
 type MetaField struct {
-	Index      int    `json:"index"`
-	Name       string `json:"name"`
-	Color      string `json:"color,omitempty"`
-	Format     string `json:"format,omitempty"`
-	WithoutKey bool   `json:"withoutKey,omitempty"`
-	Hide       bool   `json:"hide,omitempty"`
+	Index        int
+	Name         string
+	KeyName      string
+	AttachBefore bool
+	Color        string
+	Format       string
+	Precision    int
+	WithoutKey   bool
+	Hide         bool
 }
 
 var (
@@ -48,7 +51,7 @@ func RegisterType(logType string, model any) {
 		if !ok {
 			panic("log model must implement Reset() method: " + t.Name())
 		}
-		
+
 		// 检查该方法是否属于当前类型（而不是继承自 BaseLog 且没有被重写）
 		baseResetMethod, _ := reflect.PointerTo(reflect.TypeOf(BaseLog{})).MethodByName("Reset")
 		if method.Func.Pointer() == baseResetMethod.Func.Pointer() {
@@ -144,6 +147,11 @@ func extractMetaFields(model any) []MetaField {
 		if tag != "" {
 			parts := strings.Split(tag, ",")
 			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part == "attachBefore" {
+					meta.AttachBefore = true
+					continue
+				}
 				kv := strings.SplitN(part, ":", 2)
 				if len(kv) == 2 {
 					key := strings.TrimSpace(kv[0])
@@ -157,6 +165,12 @@ func extractMetaFields(model any) []MetaField {
 						meta.WithoutKey = (val == "true")
 					case "hide":
 						meta.Hide = (val == "true")
+					case "keyname":
+						meta.KeyName = val
+					case "attachBefore":
+						meta.AttachBefore = (val == "true")
+					case "precision":
+						meta.Precision = cast.To[int](val)
 					}
 				}
 			}
