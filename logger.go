@@ -48,7 +48,7 @@ func NewLogger(conf Config) *Logger {
 
 	logger := Logger{
 		truncations: cast.Split(conf.Truncations, ","),
-		traceId:     id.MakeID(10),
+		traceId:     id.Get10Bytes14MPerSecond(),
 	}
 
 	if len(conf.Sensitive) > 0 {

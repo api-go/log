@@ -194,17 +194,14 @@ func getCallStacks(truncations []string) []string {
 
 // GetDefaultName 获取默认应用名称
 func GetDefaultName() string {
-	name := os.Getenv("DISCOVER_APP")
-	if name == "" {
-		name = os.Getenv("discover_app")
-	}
-	if name == "" {
-		if info, ok := debug.ReadBuildInfo(); ok && info.Path != "" && info.Path != "command-line-arguments" {
-			name = path.Base(info.Path)
-		}
+	name := ""
+	if info, ok := debug.ReadBuildInfo(); ok && info.Path != "" && info.Path != "command-line-arguments" {
+		name = path.Base(info.Path)
 	}
 	if name == "" {
 		name = path.Base(os.Args[0])
 	}
+	// 处理 Windows 下的 .exe 后缀
+	name = strings.TrimSuffix(name, ".exe")
 	return name
 }
