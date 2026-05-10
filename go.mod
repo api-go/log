@@ -14,7 +14,7 @@ require (
 	apigo.cc/go/encoding v1.1.2 // indirect
 	apigo.cc/go/rand v1.0.6 // indirect
 	apigo.cc/go/safe v1.0.7 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
