@@ -30,3 +30,15 @@ func SetDefaultName(name string) {
 		DefaultLogger.SetName(name)
 	}
 }
+
+// As 仿照 cast.As，使用 DefaultLogger 记录错误并返回零值 (消除摩擦)
+func As[T any](v T, err error) T {
+	if err != nil {
+		if DefaultLogger != nil {
+			DefaultLogger.Error(err.Error())
+		}
+		var zero T
+		return zero
+	}
+	return v
+}

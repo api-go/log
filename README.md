@@ -89,10 +89,14 @@ export LOG_FILE=console
 1.  **分级记录**
     * `Debug`, `Info`, `Warning`, `Error` —— 标准日志方法，支持 `message` + 变长 `extra` 参数。
 
-2.  **通用记录 (`Log`)**
+2.  **摩擦消除 (`As`)**
+    * `As(v, err)` —— 仿照 `cast.As`，忽略错误并返回零值，但会自动将错误记录到日志中。支持全局调用 (`log.As`) 或实例调用 (`logger.As`)。
+    * **优势**: 在类型转换或快速赋值场景下，无需繁琐的 `if err != nil` 判断，同时确保异常被记录。
+
+3.  **通用记录 (`Log`)**
     * `Log(LogEntry)` —— 记录自定义结构的日志。
 
-3.  **独立可视化工具 (`logv`)**
+4.  **独立可视化工具 (`logv`)**
     *   **安装**: `go install apigo.cc/go/log/logv@latest`
     *   **使用**: `tail -f app.log | logv` 或 `tail -f app.log | logv -json`。
 

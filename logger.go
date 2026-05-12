@@ -254,6 +254,14 @@ func (logger *Logger) GetTraceId() string {
 	return logger.traceId
 }
 
+// As 仿照 cast.As，忽略错误并返回零值，但会将错误记录到日志中 (消除摩擦)
+func (logger *Logger) As(v any, err error) any {
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	return v
+}
+
 func (logger *Logger) CheckLevel(logLevel LevelType) bool {
 	settedLevel := logger.level
 	if settedLevel == 0 {

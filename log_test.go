@@ -1,6 +1,7 @@
 package log_test
 
 import (
+	"strconv"
 	"testing"
 
 	"apigo.cc/go/log"
@@ -85,4 +86,29 @@ func TestExtraLogs(t *testing.T) {
 	})
 
 	logger.Info("Extra log test", "key", "value")
+}
+
+func TestAs(t *testing.T) {
+	// 1. 测试 log.As (使用 DefaultLogger)
+	val1 := log.As(strconv.Atoi("123"))
+	if val1 != 123 {
+		t.Errorf("log.As expected 123, got %v", val1)
+	}
+
+	val2 := log.As(strconv.Atoi("abc"))
+	if val2 != 0 {
+		t.Errorf("log.As expected 0, got %v", val2)
+	}
+
+	// 2. 测试 logger.As (方法)
+	logger := log.NewLogger(log.Config{Level: "debug"})
+	val3 := logger.As(strconv.Atoi("456")).(int)
+	if val3 != 456 {
+		t.Errorf("logger.As expected 456, got %v", val3)
+	}
+
+	val4 := logger.As(strconv.Atoi("def")).(int)
+	if val4 != 0 {
+		t.Errorf("logger.As expected 0, got %v", val4)
+	}
 }

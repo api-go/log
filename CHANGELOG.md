@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.2] - 2026-05-13
+- **功能增强: 引入摩擦消除工具 `As`**:
+  - **泛型支持**: 新增全局泛型函数 `log.As[T](v T, err error) T`，仿照 `cast.As` 设计，自动记录错误并返回零值，极大简化了带 error 返回值的函数链式调用。
+  - **Logger 扩展**: `Logger` 结构体新增 `As(v any, err error) any` 方法，支持实例级别的错误捕获与自动记录。
+  - **调用栈优化**: 优化了 `GetCallStacks` 逻辑，自动跳过 `default_logger.go` 中的内部帧，确保 `log.As` 记录的错误位置精准指向业务代码。
+
 ## [1.3.1] - 2026-05-12
 - **架构升级: 引入 LoggerService**:
   - **解耦重构**: 重构全局变量管理，引入 `loggerService` 结构体，集中化管理异步写入协程、Writers 对象池、文件句柄与丢弃计数。

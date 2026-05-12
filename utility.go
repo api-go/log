@@ -69,6 +69,7 @@ func getCallStacks(truncations []string) []string {
 		isLogInternal := (strings.Contains(file, "/log/logger.go") ||
 			strings.Contains(file, "/log/utility.go") ||
 			strings.Contains(file, "/log/standard.go") ||
+			strings.Contains(file, "/log/default_logger.go") ||
 			strings.Contains(file, "/log/extra.go"))
 
 		if isLogInternal {

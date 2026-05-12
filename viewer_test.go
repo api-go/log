@@ -181,12 +181,12 @@ func TestCallStacksViewable(t *testing.T) {
 	wd, _ := os.Getwd()
 	entry := &CallStackLog{
 		BaseLog: log.BaseLog{
-			LogType: "error",
+			LogType: "test_error",
 			LogTime: 1714896000000000000,
 		},
 		CallStacks: []string{wd + "/main.go:10", "/usr/local/go/src/runtime/panic.go:100"},
 	}
-	log.RegisterType("error", entry)
+	log.RegisterType("test_error", entry)
 
 	line := string(log.Marshal(entry, nil))
 	out := log.Viewable(line)
