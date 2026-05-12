@@ -22,8 +22,8 @@ type logPayload struct {
 	file   *FileWriter // 目标文件 Writer
 }
 
-// loggerService manages the background writing of log entries.
-type loggerService struct {
+// writerService manages the background writing of log entries.
+type writerService struct {
 	Running    atomic.Bool
 	StopChan   chan bool
 	LogChannel chan logPayload
@@ -36,8 +36,8 @@ type loggerService struct {
 }
 
 var (
-	// LoggerService is the global instance of loggerService.
-	LoggerService = &loggerService{}
+	// WriterService is the global instance of defaultService.
+	WriterService = &writerService{}
 )
 
 // ConsoleWriter 控制台写入器
@@ -52,9 +52,9 @@ func (w *ConsoleWriter) Run() {
 }
 
 func init() {
-	LoggerService.LogChannel = make(chan logPayload, 10000)
-	LoggerService.Writers.Store([]Writer{})
-	LoggerService.Files = make(map[string]*FileWriter)
+	WriterService.LogChannel = make(chan logPayload, 10000)
+	WriterService.Writers.Store([]Writer{})
+	WriterService.Files = make(map[string]*FileWriter)
 
 	RegisterWriterMaker("console", func(conf *Config) Writer {
 		return &ConsoleWriter{}
@@ -66,14 +66,14 @@ func writeAsync(payload logPayload) {
 	defer func() {
 		recover()
 	}()
-	if !LoggerService.Running.Load() {
+	if !WriterService.Running.Load() {
 		return
 	}
 	select {
-	case LoggerService.LogChannel <- payload:
+	case WriterService.LogChannel <- payload:
 	default:
 		// 丢弃或处理过载
-		dropped := LoggerService.Dropped.Add(1)
+		dropped := WriterService.Dropped.Add(1)
 		if dropped%1000 == 1 {
 			if DefaultLogger != nil {
 				// 注意：这里可能会产生递归调用，但 select default 保证了不会死锁
@@ -85,29 +85,11 @@ func writeAsync(payload logPayload) {
 
 // GetDroppedLogs 获取被丢弃的日志数量
 func GetDroppedLogs() uint64 {
-	return LoggerService.Dropped.Load()
-}
-
-// Start 启动写入器 (兼容旧 API)
-func Start() {
-	_ = LoggerService.Start(nil, nil)
-}
-
-// Stop 停止写入器 (兼容旧 API)
-func Stop() {
-	_ = LoggerService.Stop(nil)
-}
-
-// Wait 等待写入器停止 (兼容旧 API)
-func Wait() {
-	if LoggerService.StopChan != nil {
-		<-LoggerService.StopChan
-		LoggerService.StopChan = nil
-	}
+	return WriterService.Dropped.Load()
 }
 
 // Start implements starter.Service interface.
-func (s *loggerService) Start(_ context.Context, _ *Logger) error {
+func (s *writerService) Start(_ context.Context, _ *Logger) error {
 	if !s.Running.CompareAndSwap(false, true) {
 		return nil
 	}
@@ -117,7 +99,7 @@ func (s *loggerService) Start(_ context.Context, _ *Logger) error {
 }
 
 // Stop implements starter.Service interface.
-func (s *loggerService) Stop(_ context.Context) error {
+func (s *writerService) Stop(_ context.Context) error {
 	if s.Running.CompareAndSwap(true, false) {
 		close(s.LogChannel)
 		if s.StopChan != nil {
@@ -129,11 +111,11 @@ func (s *loggerService) Stop(_ context.Context) error {
 }
 
 // Health implements starter.Service interface.
-func (s *loggerService) Health() error {
+func (s *writerService) Health() error {
 	return nil
 }
 
-func (s *loggerService) writerRunner() {
+func (s *writerService) writerRunner() {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -173,7 +155,7 @@ func (s *loggerService) writerRunner() {
 	}
 }
 
-func (s *loggerService) processLog(payload logPayload) {
+func (s *writerService) processLog(payload logPayload) {
 	// 精准路由：根据包裹信息决定写入目标
 	if payload.writer != nil {
 		payload.writer.Log(payload.entry, payload.buf)
@@ -182,7 +164,7 @@ func (s *loggerService) processLog(payload logPayload) {
 	}
 }
 
-func (s *loggerService) flushWriters() {
+func (s *writerService) flushWriters() {
 	curWriters, _ := s.Writers.Load().([]Writer)
 	for _, w := range curWriters {
 		w.Run()

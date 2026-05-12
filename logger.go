@@ -78,29 +78,27 @@ func NewLogger(conf Config) *Logger {
 			if m, ok := writerMakers[writerName]; ok {
 				if w := m(&conf); w != nil {
 					logger.writer = w
-					LoggerService.WriterLock.Lock()
-					cur := LoggerService.Writers.Load().([]Writer)
+					WriterService.WriterLock.Lock()
+					cur := WriterService.Writers.Load().([]Writer)
 					newW := append(cur, w)
-					LoggerService.Writers.Store(newW)
-					LoggerService.WriterLock.Unlock()
-					Start()
+					WriterService.Writers.Store(newW)
+					WriterService.WriterLock.Unlock()
 				}
 			}
 		} else {
 			if conf.SplitTag != "" {
-				LoggerService.FilesLock.RLock()
-				logger.file = LoggerService.Files[conf.File+conf.SplitTag]
-				LoggerService.FilesLock.RUnlock()
+				WriterService.FilesLock.RLock()
+				logger.file = WriterService.Files[conf.File+conf.SplitTag]
+				WriterService.FilesLock.RUnlock()
 				if logger.file == nil {
 					logger.file = &FileWriter{
 						fileName: conf.File,
 						splitTag: conf.SplitTag,
 					}
-					LoggerService.FilesLock.Lock()
-					LoggerService.Files[conf.File+conf.SplitTag] = logger.file
-					LoggerService.FilesLock.Unlock()
+					WriterService.FilesLock.Lock()
+					WriterService.Files[conf.File+conf.SplitTag] = logger.file
+					WriterService.FilesLock.Unlock()
 				}
-				Start()
 			} else {
 				fp, err := os.OpenFile(conf.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 				if err == nil {
@@ -124,7 +122,7 @@ func (logger *Logger) asyncWrite(entry LogEntry) {
 }
 
 func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
-	if LoggerService.Running.Load() {
+	if WriterService.Running.Load() {
 		writeAsync(logPayload{
 			entry:  entry,
 			buf:    buf,

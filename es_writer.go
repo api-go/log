@@ -97,7 +97,7 @@ func (w *esWriter) Run() {
 	w.lock.Unlock()
 
 	// 超过100条数据 或 过了1秒 发送数据
-	if queueLen > 100 || (queueLen > 0 && (now > w.last || !LoggerService.Running.Load())) {
+	if queueLen > 100 || (queueLen > 0 && (now > w.last || !WriterService.Running.Load())) {
 		w.lock.Lock()
 		sendings := w.queue
 		w.queue = make([]string, 0)

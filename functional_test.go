@@ -20,6 +20,7 @@ func TestSplitTag(t *testing.T) {
 		File:     logFile,
 		SplitTag: splitTag,
 	}
+	log.WriterService.Start(nil, nil)
 	logger := log.NewLogger(conf)
 
 	// 1. 记录第一条日志

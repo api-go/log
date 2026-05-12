@@ -28,8 +28,7 @@ func TestLoggerReliability(t *testing.T) {
 	}
 
 	wg.Wait()
-	Stop()
-	Wait()
+	WriterService.Stop(nil)
 
 	file, err := os.Open(logFile)
 	if err != nil {
