@@ -25,6 +25,9 @@ import "apigo.cc/go/log"
 
 // 默认 logger (通过 log.json 或环境变量配置)
 func main() {
+	// 在微服务场景下动态设置应用名称
+	log.SetDefaultName("my-microservice")
+
 	log.Info("服务启动", "port", 8080)
 	log.Error("数据库连接失败", "db", "mysql")
 
@@ -51,7 +54,7 @@ func main() {
   "level": "info",
   "file": "logs/app.log",
   "splitTag": ".2006-01-02",
-  "sensitive": "phone,password,secret,token,key"
+  "sensitive": "phone,password,secret,token,accessToken,authorization"
 }
 ```
 
@@ -68,7 +71,7 @@ export LOG_FILE=console
 
 ### 配置项说明
 
-*   `name`: 应用名称 (默认读取 DISCOVER_APP 或从 `go.mod` 自动识别)。
+*   `name`: 应用名称 (默认通过 `debug.ReadBuildInfo()` 或 `os.Args[0]` 自动识别)。
 *   `level`: 日志级别 (`debug`, `info`, `warning`, `error`)。
 *   `file`: 输出目标。
     *   `console`: 直接输出到控制台（默认）。
@@ -77,7 +80,7 @@ export LOG_FILE=console
 *   `splitTag`: 文件切分格式，仅当 `file` 为文件路径时有效。
     *   语法遵循 Go 标准的 `time.Format` 布局，如 `".2006-01-02"` (按天切分)，`".2006-01-02-15"` (按小时切分)。
 *   `truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
-*   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写），默认处理 `phone,password,secret,token,key`。
+*   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写），默认处理 `phone,password,secret,token,accessToken,authorization`。
 
 ## 🛠 API 指南
 

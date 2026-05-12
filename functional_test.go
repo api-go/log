@@ -12,8 +12,8 @@ import (
 func TestSplitTag(t *testing.T) {
 	logFile := "test_rotate.log"
 	// 使用每秒切分的标签，方便测试文件轮转
-	splitTag := ".20060102150405" 
-	
+	splitTag := ".20060102150405"
+
 	conf := log.Config{
 		Name:     "test-split",
 		Level:    "info",
@@ -21,12 +21,12 @@ func TestSplitTag(t *testing.T) {
 		SplitTag: splitTag,
 	}
 	logger := log.NewLogger(conf)
-	
+
 	// 1. 记录第一条日志
 	t1 := time.Now()
 	logger.Info("first message")
 	time.Sleep(300 * time.Millisecond) // 等待异步写入
-	
+
 	expectedFile1 := logFile + "." + t1.Format(splitTag)
 	if !file.Exists(expectedFile1) {
 		// 可能在写入时秒数刚好进位
@@ -38,12 +38,12 @@ func TestSplitTag(t *testing.T) {
 
 	// 2. 等待跨秒，确保下次写入肯定会触发轮转
 	time.Sleep(1200 * time.Millisecond)
-	
+
 	// 3. 记录第二条日志，触发轮转
 	t2 := time.Now()
 	logger.Info("second message")
 	time.Sleep(300 * time.Millisecond) // 等待异步写入
-	
+
 	expectedFile2 := logFile + "." + t2.Format(splitTag)
 	if !file.Exists(expectedFile2) {
 		expectedFile2 = logFile + "." + time.Now().Format(splitTag)
@@ -51,7 +51,7 @@ func TestSplitTag(t *testing.T) {
 			t.Fatalf("Second log file does not exist after rotation")
 		}
 	}
-	
+
 	if expectedFile1 == expectedFile2 {
 		t.Errorf("Files should be different for rotation, but both are %s", expectedFile1)
 	}
@@ -74,13 +74,13 @@ func TestSensitiveDetailed(t *testing.T) {
 	entry.Password = "my_password"
 	entry.SecretKey = "super_secret"
 	entry.SafeData = "hello"
-	
+
 	// 直接测试 ToArrayBytes
 	// 注意：passed to ToArrayBytes 的 keys 应该是已经过 fixField 处理的
 	sensitiveKeys := []string{"password", "secretkey"}
-	buf := log.ToArrayBytes(entry, sensitiveKeys)
+	buf := log.Marshal(entry, sensitiveKeys)
 	result := string(buf)
-	
+
 	if strings.Contains(result, "my_password") {
 		t.Errorf("Sensitive data 'my_password' not masked in: %s", result)
 	}
@@ -115,7 +115,7 @@ func TestDeepDesensitization(t *testing.T) {
 	}
 
 	sensitiveKeys := []string{"password", "token"}
-	buf := log.ToArrayBytes(entry, sensitiveKeys)
+	buf := log.Marshal(entry, sensitiveKeys)
 	result := string(buf)
 
 	// Check deep desensitization in map
@@ -133,4 +133,3 @@ func TestDeepDesensitization(t *testing.T) {
 		t.Errorf("Safe data 'data_safe' should be present in: %s", result)
 	}
 }
-

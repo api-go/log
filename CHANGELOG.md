@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.1] - 2026-05-12
+- **架构升级: 引入 LoggerService**:
+  - **解耦重构**: 重构全局变量管理，引入 `loggerService` 结构体，集中化管理异步写入协程、Writers 对象池、文件句柄与丢弃计数。
+  - **生命周期管理**: 实现了 `Start(ctx, logger)`, `Stop(ctx)`, `Health()` 接口，完美支持与 `apigo.cc/go/starter` 的基础设施集成。
+  - **安全性增强**: 优化了平滑停止逻辑，确保 `Stop` 调用时能完整 Flush 缓冲区数据。
+- **功能增强**:
+  - **动态应用名**: 新增 `SetDefaultName(name)` 全局方法，支持在微服务启动后动态设置应用名称，并自动同步至 `DefaultLogger`。
+- **配置与忽略规则**:
+  - 更新 `.gitignore`，增加了对 `.gemini`, `env.json`, `env.yml` 以及 `/CODE-FULL.md` 的忽略支持。
+- **文档与测试同步**: 全面更新了 `README.md`, `CHANGELOG.md` 与 `TEST.md`。
+
+## [1.3.0] - 2026-05-10
+- **全栈基础设施对齐**: 
+  - 将所有内部依赖（`cast`, `config`, `file`, `id`, `shell` 等）统一升级至 `v1.3.0` 语义版本。
+  - 优化项目忽略规则，在 `.gitignore` 中增加了对 `.geminiignore` 的支持。
+
+## [1.1.16] - 2026-05-10
+- **依赖对齐**: 同步更新 `golang.org/x/crypto` 和 `golang.org/x/sys` 至最新版本，确保底层安全性。
+
+## [1.1.15] - 2026-05-10
+- **安全与性能双重增强**:
+  - **敏感字段扩展**: `authorization` 现在默认纳入脱敏规则 (`LogDefaultSensitive`)，自动过滤 HTTP 认证凭证。
+  - **TraceId 吞吐优化**: 切换至 `id.Get10Bytes14MPerSecond()` 算法，在保持 10 字节唯一性的同时，极大提升了超高并发下的 ID 生成性能。
+  - **应用名称识别对齐**: 重构 `GetDefaultName` 逻辑，优先通过 `debug.ReadBuildInfo()` 识别 Module 路径，并支持自动裁剪 Windows 环境下的 `.exe` 后缀。
+
 ## [1.1.14] - 2026-05-09
 - **可视化能力调整**: 调整优化了 `viewer` 模块相关的可视化能力，提升了日志的可读性与调试体验。
 

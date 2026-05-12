@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 )
 
@@ -16,11 +15,6 @@ type FileWriter struct {
 	fp        *os.File
 	bufWriter *bufio.Writer
 }
-
-var (
-	files     = make(map[string]*FileWriter)
-	filesLock sync.RWMutex
-)
 
 // Write 由外层的 writerRunner 单协程调用，绝对并发安全，无需加锁
 func (f *FileWriter) Write(tm time.Time, data []byte) {

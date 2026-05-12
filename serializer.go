@@ -90,7 +90,8 @@ func getAccessors(logType string, model any) []fieldAccessor {
 	return accessors
 }
 
-func ToArrayBytes(entry LogEntry, sensitiveKeys []string) []byte {
+// donot export this function
+func Marshal(entry LogEntry, sensitiveKeys []string) []byte {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 

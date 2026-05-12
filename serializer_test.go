@@ -29,7 +29,7 @@ func (b *SerializerMockBaseLog) Reset() {
 
 type SerializerMockInfoLog struct {
 	SerializerMockBaseLog
-	Message string `log:"pos:4"`
+	Message string         `log:"pos:4"`
 	Extra   map[string]any `log:"pos:1000"`
 }
 
@@ -58,11 +58,11 @@ func TestToArrayBytes(t *testing.T) {
 	}
 
 	RegisterType("mock_info_test", entry) // trigger meta generation
-	
-	bytes := ToArrayBytes(entry, nil)
+
+	bytes := Marshal(entry, nil)
 	str := string(bytes)
 	t.Logf("Raw log: %s", str)
-	
+
 	var arr []any
 	err := json.Unmarshal(bytes, &arr)
 	if err != nil {
@@ -90,7 +90,7 @@ func TestToArrayBytes(t *testing.T) {
 	if arr[4] != "Hello, World!" {
 		t.Errorf("expected arr[4] == 'Hello, World!', got %v", arr[4])
 	}
-	
+
 	extraMap, ok := arr[5].(map[string]any)
 	if !ok {
 		t.Fatalf("expected arr[5] to be map[string]any, got %T (value: %v)", arr[5], arr[5])
@@ -110,12 +110,12 @@ func TestToArrayBytes_Desensitize(t *testing.T) {
 			"password": "my-secret-password",
 		},
 	}
-	
+
 	RegisterType("mock_info_test2", entry)
-	
-	bytes := ToArrayBytes(entry, []string{"password"})
+
+	bytes := Marshal(entry, []string{"password"})
 	str := string(bytes)
-	
+
 	var arr []any
 	err := json.Unmarshal(bytes, &arr)
 	if err != nil {

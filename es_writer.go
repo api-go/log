@@ -14,7 +14,7 @@ import (
 	"apigo.cc/go/cast"
 )
 
-type ESWriter struct {
+type esWriter struct {
 	config   *Config
 	url      string
 	user     string
@@ -27,8 +27,8 @@ type ESWriter struct {
 	prefix   string
 }
 
-func NewESWriter(conf *Config) Writer {
-	w := &ESWriter{
+func newESWriter(conf *Config) Writer {
+	w := &esWriter{
 		config: conf,
 		queue:  make([]string, 0),
 		client: &http.Client{},
@@ -76,7 +76,7 @@ func NewESWriter(conf *Config) Writer {
 	return w
 }
 
-func (w *ESWriter) Log(entry LogEntry, data []byte) {
+func (w *esWriter) Log(entry LogEntry, data []byte) {
 	objBytes, err := cast.ToJSONBytes(entry)
 	if err != nil || len(objBytes) == 0 {
 		return
@@ -90,14 +90,14 @@ func (w *ESWriter) Log(entry LogEntry, data []byte) {
 
 var responseOkBytes = []byte("\"errors\":false")
 
-func (w *ESWriter) Run() {
+func (w *esWriter) Run() {
 	now := time.Now().Unix()
 	w.lock.Lock()
 	queueLen := len(w.queue)
 	w.lock.Unlock()
 
 	// 超过100条数据 或 过了1秒 发送数据
-	if queueLen > 100 || (queueLen > 0 && (now > w.last || !writerRunning.Load())) {
+	if queueLen > 100 || (queueLen > 0 && (now > w.last || !LoggerService.Running.Load())) {
 		w.lock.Lock()
 		sendings := w.queue
 		w.queue = make([]string, 0)

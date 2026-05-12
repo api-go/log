@@ -43,7 +43,7 @@ func NewLogger(conf Config) *Logger {
 	}
 
 	if conf.Name == "" {
-		conf.Name = GetDefaultName()
+		conf.Name = getDefaultName()
 	}
 
 	logger := Logger{
@@ -78,27 +78,27 @@ func NewLogger(conf Config) *Logger {
 			if m, ok := writerMakers[writerName]; ok {
 				if w := m(&conf); w != nil {
 					logger.writer = w
-					writerLock.Lock()
-					cur := writers.Load().([]Writer)
+					LoggerService.WriterLock.Lock()
+					cur := LoggerService.Writers.Load().([]Writer)
 					newW := append(cur, w)
-					writers.Store(newW)
-					writerLock.Unlock()
+					LoggerService.Writers.Store(newW)
+					LoggerService.WriterLock.Unlock()
 					Start()
 				}
 			}
 		} else {
 			if conf.SplitTag != "" {
-				filesLock.RLock()
-				logger.file = files[conf.File+conf.SplitTag]
-				filesLock.RUnlock()
+				LoggerService.FilesLock.RLock()
+				logger.file = LoggerService.Files[conf.File+conf.SplitTag]
+				LoggerService.FilesLock.RUnlock()
 				if logger.file == nil {
 					logger.file = &FileWriter{
 						fileName: conf.File,
 						splitTag: conf.SplitTag,
 					}
-					filesLock.Lock()
-					files[conf.File+conf.SplitTag] = logger.file
-					filesLock.Unlock()
+					LoggerService.FilesLock.Lock()
+					LoggerService.Files[conf.File+conf.SplitTag] = logger.file
+					LoggerService.FilesLock.Unlock()
 				}
 				Start()
 			} else {
@@ -118,14 +118,14 @@ func (logger *Logger) Log(entry LogEntry) {
 }
 
 func (logger *Logger) asyncWrite(entry LogEntry) {
-	buf := ToArrayBytes(entry, logger.sensitiveKeys)
+	buf := Marshal(entry, logger.sensitiveKeys)
 	logger.writeBuf(entry, buf)
-	PutEntry(entry)
+	putEntry(entry)
 }
 
 func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
-	if writerRunning.Load() {
-		WriteAsync(logPayload{
+	if LoggerService.Running.Load() {
+		writeAsync(logPayload{
 			entry:  entry,
 			buf:    buf,
 			writer: logger.writer,
@@ -236,6 +236,10 @@ func (logger *Logger) Error(message string, extra ...any) {
 		}
 		logger.Log(entry)
 	}
+}
+
+func (logger *Logger) SetName(name string) {
+	logger.config.Name = name
 }
 
 func (logger *Logger) SetLevel(level LevelType) {

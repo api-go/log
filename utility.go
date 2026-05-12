@@ -1,7 +1,6 @@
 package log
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -9,9 +8,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
-	"time"
-
-	"apigo.cc/go/cast"
 )
 
 var (
@@ -47,103 +43,6 @@ func init() {
 			}
 		}
 	}
-}
-
-// MakeTime 解析纳秒时间戳或 RFC3339 字符串
-func MakeTime(v any) time.Time {
-	if ts, ok := cast.ToInt64E(v); ok == nil {
-		return time.Unix(0, ts)
-	}
-	tm, _ := time.Parse(time.RFC3339Nano, cast.String(v))
-	return tm
-}
-
-// MakeUsedTime 计算消耗时间（毫秒）
-func MakeUsedTime(startTime, endTime time.Time) float32 {
-	return float32(endTime.UnixNano()-startTime.UnixNano()) / 1e6
-}
-
-// ParseBaseLog 解析基础日志行
-func ParseBaseLog(line string) *BaseLog {
-	pos := strings.IndexByte(line, '{')
-	if pos == -1 {
-		return ParseBadLog(line)
-	}
-
-	l := make(map[string]any)
-	err := json.Unmarshal([]byte(line[pos:]), &l)
-	if err != nil {
-		return ParseBadLog(line)
-	}
-
-	baseLog := BaseLog{Extra: make(map[string]any)}
-	for k, v := range l {
-		lk := strings.ToLower(k)
-		switch lk {
-		case "logname":
-			baseLog.LogName = cast.String(v)
-		case "logtype":
-			baseLog.LogType = cast.String(v)
-		case "logtime":
-			baseLog.LogTime = cast.Int64(v)
-		case "traceid":
-			baseLog.TraceId = cast.String(v)
-		case "imagename":
-			if baseLog.Image != "" {
-				baseLog.Image = cast.String(v) + ":" + baseLog.Image
-			} else {
-				baseLog.Image = cast.String(v)
-			}
-		case "imagetag":
-			if baseLog.Image != "" {
-				baseLog.Image = baseLog.Image + ":" + cast.String(v)
-			} else {
-				baseLog.Image = cast.String(v)
-			}
-		case "servername":
-			if baseLog.Server != "" {
-				baseLog.Server = cast.String(v) + ":" + baseLog.Server
-			} else {
-				baseLog.Server = cast.String(v)
-			}
-		case "serverip":
-			if baseLog.Server != "" {
-				baseLog.Server = baseLog.Server + ":" + cast.String(v)
-			} else {
-				baseLog.Server = cast.String(v)
-			}
-		default:
-			baseLog.Extra[lk] = v
-		}
-	}
-	return &baseLog
-}
-
-// ParseBadLog 解析非 JSON 格式的日志
-func ParseBadLog(line string) *BaseLog {
-	baseLog := BaseLog{Extra: make(map[string]any)}
-	baseLog.LogType = LogTypeUndefined
-	if len(line) > 19 && line[19] == ' ' {
-		tm, err := time.Parse("2006/01/02 15:04:05", line[0:19])
-		if err == nil {
-			baseLog.LogTime = tm.UnixNano()
-			line = line[20:]
-		} else {
-			return nil
-		}
-	} else if len(line) > 26 && line[26] == ' ' {
-		tm, err := time.Parse("2006/01/02 15:04:05.000000", line[0:26])
-		if err == nil {
-			baseLog.LogTime = tm.UnixNano()
-			line = line[27:]
-		} else {
-			return nil
-		}
-	} else {
-		return nil
-	}
-	baseLog.Extra["info"] = line
-	return &baseLog
 }
 
 // fixField 格式化字段名（去横线、下划线，小写）
@@ -192,8 +91,13 @@ func getCallStacks(truncations []string) []string {
 	return callStacks
 }
 
-// GetDefaultName 获取默认应用名称
-func GetDefaultName() string {
+var globalDefaultName string
+
+// getDefaultName 获取默认应用名称
+func getDefaultName() string {
+	if globalDefaultName != "" {
+		return globalDefaultName
+	}
 	name := ""
 	if info, ok := debug.ReadBuildInfo(); ok && info.Path != "" && info.Path != "command-line-arguments" {
 		name = path.Base(info.Path)

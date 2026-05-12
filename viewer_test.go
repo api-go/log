@@ -20,7 +20,7 @@ func TestViewable(t *testing.T) {
 	}
 	log.RegisterType("info", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	out := log.Viewable(line)
 
 	if !strings.Contains(out, "hello world") {
@@ -44,7 +44,7 @@ func TestToJSON(t *testing.T) {
 	entry.Extra = map[string]any{"key": "value"}
 	log.RegisterType("info", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	jsonStr := log.ToJSON(line)
 
 	if !strings.Contains(jsonStr, `"Info":"hello world"`) {
@@ -112,7 +112,7 @@ func TestEnhancedViewable(t *testing.T) {
 	}
 	log.RegisterType("enhanced", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	out := log.Viewable(line)
 
 	// Check attachBefore: MyApp:Node1 (since both are withoutkey)
@@ -155,7 +155,7 @@ func TestEnhancedToJSON(t *testing.T) {
 	}
 	log.RegisterType("enhanced", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	jsonStr := log.ToJSON(line)
 
 	// Check keyname in JSON
@@ -188,7 +188,7 @@ func TestCallStacksViewable(t *testing.T) {
 	}
 	log.RegisterType("error", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	out := log.Viewable(line)
 
 	// Check path truncation (should contain relative "main.go:10")
@@ -221,7 +221,7 @@ func TestPrecisionViewable(t *testing.T) {
 	}
 	log.RegisterType("precision", entry)
 
-	line := string(log.ToArrayBytes(entry, nil))
+	line := string(log.Marshal(entry, nil))
 	out := log.Viewable(line)
 
 	if !strings.Contains(out, "3.14") || strings.Contains(out, "3.141") {

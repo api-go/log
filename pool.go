@@ -33,8 +33,8 @@ func GetEntry[T any]() *T {
 	return entry
 }
 
-// PutEntry 将日志对象归还到池中
-func PutEntry(entry any) {
+// putEntry 将日志对象归还到池中
+func putEntry(entry any) {
 	t := reflect.TypeOf(entry)
 	if pool, ok := globalPools.pools.Load(t); ok {
 		pool.(*sync.Pool).Put(entry)
@@ -44,7 +44,7 @@ func PutEntry(entry any) {
 // WithEntry 执行闭包并在结束后自动回收对象
 func WithEntry[T any](fn func(*T)) {
 	entry := GetEntry[T]()
-	defer PutEntry(entry)
+	defer putEntry(entry)
 	fn(entry)
 }
 
