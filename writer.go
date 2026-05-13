@@ -110,11 +110,13 @@ func (s *writerService) Stop(_ context.Context) error {
 	return nil
 }
 
-// Health implements starter.Service interface.
-func (s *writerService) Health() error {
-	return nil
+// Status implements starter.Service interface.
+func (s *writerService) Status() (string, error) {
+	if s.Running.Load() {
+		return fmt.Sprintf("queue: %d, dropped: %d", len(s.LogChannel), s.Dropped.Load()), nil
+	}
+	return "stopped", nil
 }
-
 func (s *writerService) writerRunner() {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
