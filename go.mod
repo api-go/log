@@ -3,9 +3,9 @@ module apigo.cc/go/log
 go 1.25.0
 
 require (
-	apigo.cc/go/cast v1.3.0
+	apigo.cc/go/cast v1.3.2
 	apigo.cc/go/config v1.3.0
-	apigo.cc/go/file v1.3.0
+	apigo.cc/go/file v1.3.1
 	apigo.cc/go/id v1.3.0
 	apigo.cc/go/shell v1.3.0
 )

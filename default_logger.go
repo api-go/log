@@ -42,3 +42,23 @@ func As[T any](v T, err error) T {
 	}
 	return v
 }
+
+// Debug 记录一条调试级别日志
+func Debug(message string, extra ...any) {
+	DefaultLogger.Debug(message, extra...)
+}
+
+// Info 记录一条信息级别日志
+func Info(message string, extra ...any) {
+	DefaultLogger.Info(message, extra...)
+}
+
+// Warning 记录一条警告级别日志
+func Warning(message string, extra ...any) {
+	DefaultLogger.Warning(message, extra...)
+}
+
+// Error 记录一条错误级别日志
+func Error(message string, extra ...any) {
+	DefaultLogger.Error(message, extra...)
+}
