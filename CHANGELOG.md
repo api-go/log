@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.5.2] - 2026-06-04
+- **稳定性修复: 异步引擎平滑退出**:
+  - **修复**: 重构 `writerService` 的通道生命周期管理。在 `Start` 时重新初始化 `LogChannel` 与 `StopChan`，并改用 `chan struct{}` 替代 `chan bool`，彻底解决了在 `starter` 多次启停或服务退出时引发的 `panic: close of closed channel` 致命错误。
+
 ## [1.5.1] - 2026-06-04
 - **缺陷修复: 异步控制台日志丢失**:
   - **修复**: 在 `writerService.processLog` 中补充了默认的回退逻辑。当处于异步 `starter` 运行模式下，且日志的 `writer` 和 `file` 都为 `nil`（即未配置特定的输出目标，本应输出到控制台）时，不再静默丢弃该日志，而是默认回退调用 `fmt.Println` 并在控制台打印渲染后的视图。

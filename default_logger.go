@@ -13,6 +13,7 @@ func init() {
 	var conf Config
 	_ = config.Load(&conf, "log")
 	DefaultLogger = NewLogger(conf)
+	DefaultLogger.RedirectStdLog()
 }
 
 // New 创建带有 traceId 的 Logger 副本

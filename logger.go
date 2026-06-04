@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -10,6 +11,31 @@ import (
 	"apigo.cc/go/cast"
 	"apigo.cc/go/id"
 )
+
+// logRedirectWriter 捕获标准 log 包的输出并转发到 structured logger
+type logRedirectWriter struct {
+	logger *Logger
+}
+
+func (w *logRedirectWriter) Write(p []byte) (n int, err error) {
+	msg := strings.TrimSpace(string(p))
+	if msg != "" {
+		w.logger.Info(msg)
+	}
+	return len(p), nil
+}
+
+// RedirectStdLog 将标准 log 包的输出重定向到当前 Logger。
+// 注意：这会全局修改标准 log 包的配置。
+func (logger *Logger) RedirectStdLog() {
+	log.SetOutput(&logRedirectWriter{logger: logger})
+	log.SetFlags(0) // 禁用标准 log 的时间前缀，由我们的 logger 统一处理
+}
+
+// SetStdLogOutput 仅设置输出目标而不修改 Flags
+func SetStdLogOutput(w io.Writer) {
+	log.SetOutput(w)
+}
 
 type Logger struct {
 	config        Config
