@@ -12,6 +12,19 @@ import (
 	"apigo.cc/go/id"
 )
 
+var (
+	stdLogFilters     []func(string) bool
+	stdLogFiltersLock sync.RWMutex
+)
+
+// AddStdLogFilter 注册一个标准库日志过滤器。
+// 如果返回 true，则该条日志将被静默丢弃。
+func AddStdLogFilter(f func(string) bool) {
+	stdLogFiltersLock.Lock()
+	defer stdLogFiltersLock.Unlock()
+	stdLogFilters = append(stdLogFilters, f)
+}
+
 // logRedirectWriter 捕获标准 log 包的输出并转发到 structured logger
 type logRedirectWriter struct {
 	logger *Logger
@@ -19,9 +32,21 @@ type logRedirectWriter struct {
 
 func (w *logRedirectWriter) Write(p []byte) (n int, err error) {
 	msg := strings.TrimSpace(string(p))
-	if msg != "" {
-		w.logger.Info(msg)
+	if msg == "" {
+		return len(p), nil
 	}
+
+	stdLogFiltersLock.RLock()
+	filters := stdLogFilters
+	stdLogFiltersLock.RUnlock()
+
+	for _, f := range filters {
+		if f(msg) {
+			return len(p), nil
+		}
+	}
+
+	w.logger.Info(msg)
 	return len(p), nil
 }
 
