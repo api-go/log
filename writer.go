@@ -25,7 +25,7 @@ type logPayload struct {
 // writerService manages the background writing of log entries.
 type writerService struct {
 	Running    atomic.Bool
-	StopChan   chan bool
+	StopChan   chan struct{}
 	LogChannel chan logPayload
 	Dropped    atomic.Uint64
 	Writers    atomic.Value // []Writer
@@ -90,10 +90,13 @@ func GetDroppedLogs() uint64 {
 
 // Start implements starter.Service interface.
 func (s *writerService) Start(_ context.Context, _ *Logger) error {
+	s.FilesLock.Lock()
+	defer s.FilesLock.Unlock()
 	if !s.Running.CompareAndSwap(false, true) {
 		return nil
 	}
-	s.StopChan = make(chan bool)
+	s.LogChannel = make(chan logPayload, 10000)
+	s.StopChan = make(chan struct{})
 	go s.writerRunner()
 	return nil
 }
@@ -163,6 +166,9 @@ func (s *writerService) processLog(payload logPayload) {
 		payload.writer.Log(payload.entry, payload.buf)
 	} else if payload.file != nil {
 		payload.file.Write(time.Now(), payload.buf)
+	} else {
+		// 默认回退到控制台打印
+		fmt.Println(Viewable(string(payload.buf)))
 	}
 }
 
