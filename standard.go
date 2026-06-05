@@ -80,14 +80,12 @@ func (l *InfoLog) Reset() {
 
 type WarningLog struct {
 	BaseLog
-	Warning    string   `log:"pos:6,color:yellow,withoutkey:true"`
-	CallStacks []string `log:"pos:1001"`
+	Warning string `log:"pos:6,color:yellow,withoutkey:true"`
 }
 
 func (l *WarningLog) Reset() {
 	l.BaseLog.Reset()
 	l.Warning = ""
-	l.CallStacks = l.CallStacks[:0]
 }
 
 type ErrorLog struct {

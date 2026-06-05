@@ -231,7 +231,6 @@ func (logger *Logger) FillInfo(entry *InfoLog, message string) {
 func (logger *Logger) FillWarning(entry *WarningLog, message string) {
 	logger.FillBase(&entry.BaseLog, LogTypeWarning)
 	entry.Warning = message
-	entry.CallStacks = getCallStacks(logger.truncations)
 }
 
 func (logger *Logger) FillError(entry *ErrorLog, message string) {
