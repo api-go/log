@@ -282,6 +282,13 @@ func (logger *Logger) Error(message string, extra ...any) {
 		logger.FillError(entry, message)
 		if len(extra) > 0 {
 			cast.FillMap(&entry.Extra, extra)
+			// Merge extra callStacks into the structured CallStacks field
+			if stacks, ok := entry.Extra["callStacks"]; ok {
+				if s, ok := stacks.([]string); ok && len(s) > 0 {
+					entry.CallStacks = append(s, entry.CallStacks...)
+				}
+				delete(entry.Extra, "callStacks")
+			}
 		}
 		logger.Log(entry)
 	}

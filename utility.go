@@ -52,6 +52,15 @@ func fixField(s string) string {
 	return strings.ToLower(s)
 }
 
+// isLogPkgFile checks whether a runtime.Caller file path belongs to the log
+// package's internal implementation files. It handles both local paths
+// (.../log/file.go) and Go module paths with version suffixes
+// (.../log@v1.5.6/file.go).
+func isLogPkgFile(file, name string) bool {
+	return strings.HasSuffix(file, "/log/"+name) ||
+		(strings.Contains(file, "/log@") && strings.HasSuffix(file, "/"+name))
+}
+
 // getCallStacks 获取调用栈
 func getCallStacks(truncations []string) []string {
 	callStacks := make([]string, 0)
@@ -65,12 +74,12 @@ func getCallStacks(truncations []string) []string {
 			continue
 		}
 		// 只有在 logger.go, extra.go 等核心实现文件中的帧才被认为是 "inLogger"
-		// 这样可以保留测试文件 (xxx_test.go) 的调用栈
-		isLogInternal := (strings.Contains(file, "/log/logger.go") ||
-			strings.Contains(file, "/log/utility.go") ||
-			strings.Contains(file, "/log/standard.go") ||
-			strings.Contains(file, "/log/default_logger.go") ||
-			strings.Contains(file, "/log/extra.go"))
+		// 兼容本地路径 (.../log/file.go) 和 module 路径 (.../log@v1.5.6/file.go)
+		isLogInternal := isLogPkgFile(file, "logger.go") ||
+			isLogPkgFile(file, "utility.go") ||
+			isLogPkgFile(file, "standard.go") ||
+			isLogPkgFile(file, "default_logger.go") ||
+			isLogPkgFile(file, "extra.go")
 
 		if isLogInternal {
 			if inLogger {
