@@ -19,7 +19,7 @@
 === RUN   TestToArrayBytes_Desensitize
 --- PASS: TestToArrayBytes_Desensitize (0.00s)
 === RUN   TestSplitTag
---- PASS: TestSplitTag (1.80s)
+--- PASS: TestSplitTag (1.81s)
 === RUN   TestSensitiveDetailed
 --- PASS: TestSensitiveDetailed (0.00s)
 === RUN   TestDeepDesensitization
@@ -49,7 +49,7 @@
 === RUN   TestPrecisionViewable
 --- PASS: TestPrecisionViewable (0.00s)
 PASS
-ok  	apigo.cc/go/log	2.246s
+ok  	apigo.cc/go/log	3.301s
 ```
 
 ## 核心指标验证
