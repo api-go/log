@@ -16,12 +16,12 @@ func (b *MockBaseLog) Reset() {
 	b.BaseField2 = 0
 }
 
-func (b *MockBaseLog) IsLogEntry() bool { return true }
+func (b *MockBaseLog) IsLogEntry() bool     { return true }
 func (b *MockBaseLog) GetBaseLog() *BaseLog { return &BaseLog{} }
 
 type MockInfoLog struct {
 	MockBaseLog
-	Message string `log:"pos:2"`
+	Message string         `log:"pos:2"`
 	Extra   map[string]any `log:"pos:1000"`
 }
 
@@ -33,8 +33,8 @@ func (l *MockInfoLog) Reset() {
 
 type MockErrorLog struct {
 	MockBaseLog
-	Error      string `log:"pos:2,color:red"`
-	CallStacks []string `log:"pos:1001"`
+	Error      string         `log:"pos:2,color:red"`
+	CallStacks []string       `log:"pos:1001"`
 	Extra      map[string]any `log:"pos:1000"`
 }
 
@@ -47,8 +47,12 @@ func (l *MockErrorLog) Reset() {
 
 func TestMetaExtraction(t *testing.T) {
 	// Setup custom meta file path for testing
+	oldMetaFilePath := metaFilePath
 	SetMetaFilePath(".test.meta.json")
-	defer os.Remove(".test.meta.json")
+	t.Cleanup(func() {
+		SetMetaFilePath(oldMetaFilePath)
+		_ = os.Remove(".test.meta.json")
+	})
 
 	RegisterType("mock_info", MockInfoLog{})
 	RegisterType("mock_error", MockErrorLog{})
@@ -101,5 +105,37 @@ func TestMetaExtraction(t *testing.T) {
 
 	if len(registry) < 2 {
 		t.Errorf("expected at least 2 types in registry, got %d", len(registry))
+	}
+}
+
+func TestSyncMetaFilePreservesExistingTypes(t *testing.T) {
+	oldMetaFilePath := metaFilePath
+	metaPath := ".test.merge.meta.json"
+	SetMetaFilePath(metaPath)
+	t.Cleanup(func() {
+		SetMetaFilePath(oldMetaFilePath)
+		_ = os.Remove(metaPath)
+	})
+
+	existing := `{"api_call":[{"Index":0,"Name":"Action","Color":"cyan"}]}`
+	if err := os.WriteFile(metaPath, []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	RegisterType("mock_merge", MockInfoLog{})
+
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var registry map[string][]MetaField
+	if err := json.Unmarshal(data, &registry); err != nil {
+		t.Fatal(err)
+	}
+	if len(registry["api_call"]) != 1 || registry["api_call"][0].Name != "Action" {
+		t.Fatalf("existing business metadata was not preserved: %+v", registry["api_call"])
+	}
+	if len(registry["mock_merge"]) == 0 {
+		t.Fatal("newly registered metadata was not written")
 	}
 }

@@ -7,7 +7,7 @@ require (
 	apigo.cc/go/config v1.5.4
 	apigo.cc/go/file v1.5.6
 	apigo.cc/go/id v1.5.7
-	apigo.cc/go/shell v1.5.5
+	apigo.cc/go/shell v1.5.6
 )
 
 require apigo.cc/go/jsmod v1.5.3 // indirect

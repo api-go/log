@@ -110,6 +110,7 @@ export LOG_FILE=console
 5.  **独立可视化工具 (`logv`)**
     *   **安装**: `go install apigo.cc/go/log/logv@latest`
     *   **使用**: `tail -f app.log | logv` 或 `tail -f app.log | logv -json`。
+    *   `logv` 从当前目录加载 `.log.meta.json`；基础 Meta 会与应用已有业务 Meta 合并，不会覆盖业务日志类型。
 
 ### 自定义日志扩展 (规范)
 

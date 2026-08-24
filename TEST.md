@@ -1,5 +1,11 @@
 # Test Results
 
+## v1.5.11 验证
+- 验证 Meta 同步保留磁盘已有业务类型，并更新当前进程注册的同名类型。
+- 验证本地 `logv` 格式化 `request` 日志时恢复时间、字段映射、隐藏规则和 ANSI 颜色。
+- 验证 `logv` 运行后 `.log.meta.json` 仍保留 `api_call` 与 `request`。
+- 全量单元测试、竞态测试和基准测试均通过。
+
 ## v1.5.10 验证
 - 验证 split 文件 logger 在包初始化阶段安全创建，不依赖文件级 `init` 顺序。
 - 验证文件 logger 自动创建父目录。
@@ -11,9 +17,9 @@
 ### Benchmark（Apple M3 Max / arm64）
 
 ```text
-BenchmarkLoggerInfo-16                       877782    1392 ns/op
-BenchmarkLoggerAsyncConcurrent-16           4188966   284.4 ns/op
-BenchmarkLogger_RequestLog_Realistic-16      973011    1124 ns/op    987 B/op    27 allocs/op
+BenchmarkLoggerInfo-16                       889536    1361 ns/op
+BenchmarkLoggerAsyncConcurrent-16           4128828   286.5 ns/op
+BenchmarkLogger_RequestLog_Realistic-16     1000000    1111 ns/op    975 B/op    27 allocs/op
 ```
 
 ## v1.5.9 验证

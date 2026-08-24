@@ -228,7 +228,7 @@ func flattenStructFields(t reflect.Type, result *[]fieldInfo, parentIndex []int)
 func syncMetaFile() {
 	metaLock.RLock()
 	defer metaLock.RUnlock()
-	_ = file.MarshalFilePretty(metaFilePath, metaRegistry)
+	_ = file.PatchFile(metaFilePath, metaRegistry)
 }
 
 // SetMetaFilePath allows changing the path for testing or configuration purposes
