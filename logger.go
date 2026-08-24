@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"apigo.cc/go/cast"
+	"apigo.cc/go/file"
 	"apigo.cc/go/id"
 )
 
@@ -83,7 +84,7 @@ func RegisterWriterMaker(name string, f func(*Config) Writer) {
 	writerMakers[name] = f
 }
 
-func NewLogger(conf Config) *Logger {
+func normalizeConfig(conf Config) Config {
 	if conf.Level == "" {
 		conf.Level = "info"
 	}
@@ -97,6 +98,11 @@ func NewLogger(conf Config) *Logger {
 	if conf.Name == "" {
 		conf.Name = getDefaultName()
 	}
+	return conf
+}
+
+func NewLogger(conf Config) *Logger {
+	conf = normalizeConfig(conf)
 
 	logger := Logger{
 		truncations: cast.Split(conf.Truncations, ","),
@@ -138,6 +144,7 @@ func NewLogger(conf Config) *Logger {
 				}
 			}
 		} else {
+			file.EnsureParentDir(conf.File)
 			if conf.SplitTag != "" {
 				WriterService.FilesLock.RLock()
 				logger.file = WriterService.Files[conf.File+conf.SplitTag]
@@ -187,7 +194,14 @@ func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
 	if logger.writer != nil {
 		logger.writer.Log(entry, buf)
 	} else if logger.file != nil {
-		fmt.Println(Viewable(string(buf)))
+		WriterService.FilesLock.RLock()
+		if WriterService.Running.Load() {
+			WriterService.FilesLock.RUnlock()
+			writeAsync(logPayload{entry: entry, buf: buf, file: logger.file})
+			return
+		}
+		logger.file.Write(time.Now(), buf)
+		WriterService.FilesLock.RUnlock()
 	} else if logger.goLogger == nil {
 		fmt.Println(Viewable(string(buf)))
 	} else {

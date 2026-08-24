@@ -37,8 +37,17 @@ type writerService struct {
 
 var (
 	// WriterService is the global instance of defaultService.
-	WriterService = &writerService{}
+	WriterService = newWriterService()
 )
+
+func newWriterService() *writerService {
+	service := &writerService{
+		LogChannel: make(chan logPayload, 10000),
+		Files:      make(map[string]*FileWriter),
+	}
+	service.Writers.Store([]Writer{})
+	return service
+}
 
 // ConsoleWriter 控制台写入器
 type ConsoleWriter struct {
@@ -52,10 +61,6 @@ func (w *ConsoleWriter) Run() {
 }
 
 func init() {
-	WriterService.LogChannel = make(chan logPayload, 10000)
-	WriterService.Writers.Store([]Writer{})
-	WriterService.Files = make(map[string]*FileWriter)
-
 	RegisterWriterMaker("console", func(conf *Config) Writer {
 		return &ConsoleWriter{}
 	})

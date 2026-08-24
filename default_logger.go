@@ -4,16 +4,38 @@ import (
 	"apigo.cc/go/config"
 )
 
-var DefaultLogger *Logger
+var (
+	defaultConfig Config
+	DefaultLogger *Logger
+)
+
+func loadDefaultConfig() Config {
+	conf := defaultConfig
+	_ = config.Load(&conf, "log")
+	return conf
+}
 
 func init() {
 	RegisterWriterMaker("es", newESWriter)
 	RegisterWriterMaker("ess", newESWriter)
 
-	var conf Config
-	_ = config.Load(&conf, "log")
+	setDefaultLogger(loadDefaultConfig())
+}
+
+func setDefaultLogger(conf Config) {
 	DefaultLogger = NewLogger(conf)
 	DefaultLogger.RedirectStdLog()
+}
+
+// SetDefaultConfig sets application defaults, then applies file and environment
+// overrides before rebuilding DefaultLogger.
+func SetDefaultConfig(conf Config) {
+	defaultConfig = conf
+	finalConfig := normalizeConfig(loadDefaultConfig())
+	if DefaultLogger != nil && DefaultLogger.config == finalConfig {
+		return
+	}
+	setDefaultLogger(finalConfig)
 }
 
 // New 创建带有 traceId 的 Logger 副本

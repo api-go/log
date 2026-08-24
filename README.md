@@ -25,6 +25,12 @@ import "apigo.cc/go/log"
 
 // 默认 logger (通过 log.json 或环境变量配置)
 func main() {
+	// 应用内置预设；log.json/log.yml、env 配置和环境变量仍可覆盖
+	log.SetDefaultConfig(log.Config{
+		File:     "logs/app.log",
+		SplitTag: ".2006-01-02",
+	})
+
 	// 在微服务场景下动态设置应用名称
 	log.SetDefaultName("my-microservice")
 
@@ -82,21 +88,26 @@ export LOG_FILE=console
 *   `truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
 *   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写），默认处理 `phone,password,secret,token,accessToken,authorization`。
 
+文件输出会在 logger 初始化时自动创建父目录。使用 `splitTag` 时，异步 writer service 启动前产生的日志会同步写入目标文件，启动后自动切换为异步写入。
+
 ## 🛠 API 指南
 
 ### 核心功能
 
-1.  **分级记录**
+1.  **应用默认配置**
+    * `SetDefaultConfig(Config)` —— 设置应用内置预设，然后加载配置文件与环境变量覆盖；最终有效配置未变化时复用当前默认 logger。
+
+2.  **分级记录**
     * `Debug`, `Info`, `Warning`, `Error` —— 标准日志方法，支持 `message` + 变长 `extra` 参数。
 
-2.  **摩擦消除 (`As`)**
+3.  **摩擦消除 (`As`)**
     * `As(v, err)` —— 仿照 `cast.As`，忽略错误并返回零值，但会自动将错误记录到日志中。支持全局调用 (`log.As`) 或实例调用 (`logger.As`)。
     * **优势**: 在类型转换或快速赋值场景下，无需繁琐的 `if err != nil` 判断，同时确保异常被记录。
 
-3.  **通用记录 (`Log`)**
+4.  **通用记录 (`Log`)**
     * `Log(LogEntry)` —— 记录自定义结构的日志。
 
-4.  **独立可视化工具 (`logv`)**
+5.  **独立可视化工具 (`logv`)**
     *   **安装**: `go install apigo.cc/go/log/logv@latest`
     *   **使用**: `tail -f app.log | logv` 或 `tail -f app.log | logv -json`。
 

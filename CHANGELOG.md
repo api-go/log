@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.10] - 2026-08-24
+- **默认配置扩展**:
+  - 新增 `SetDefaultConfig`，允许应用提供内置默认配置，并继续由配置文件和环境变量覆盖。
+  - 最终有效配置未变化时复用现有 `DefaultLogger`，避免重复初始化写入资源。
+- **切分文件可靠性**:
+  - 修复默认 logger 初始化早于 writer service 时写入 nil 文件映射导致的 panic。
+  - 文件 logger 初始化时自动创建父目录。
+  - split 文件日志在异步 writer 启动前同步落盘，避免启动日志回退到终端。
+- **依赖更新**: 对齐 `cast v1.5.5`、`config v1.5.4`、`file v1.5.6`、`id v1.5.7`、`shell v1.5.5`、`encoding v1.5.6`、`rand v1.5.4`、`safe v1.5.3`。
+
 ## [1.5.9] - 2026-07-18
 - **依赖校验修复**: 重新整理模块 checksum，并对齐 `x/crypto v0.52.0`、`x/sys v0.45.0`。
 
