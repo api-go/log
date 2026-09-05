@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	apigo.cc/go/cast v1.5.6
-	apigo.cc/go/config v1.5.5
-	apigo.cc/go/file v1.5.7
+	apigo.cc/go/config v1.5.6
+	apigo.cc/go/file v1.5.8
 	apigo.cc/go/id v1.5.8
 	apigo.cc/go/shell v1.5.7
 )
