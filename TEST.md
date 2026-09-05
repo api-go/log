@@ -1,6 +1,6 @@
 # Test Results
 
-## v1.5.11 验证
+## v1.5.12 验证
 - 验证 Meta 同步保留磁盘已有业务类型，并更新当前进程注册的同名类型。
 - 验证本地 `logv` 格式化 `request` 日志时恢复时间、字段映射、隐藏规则和 ANSI 颜色。
 - 验证 `logv` 运行后 `.log.meta.json` 仍保留 `api_call` 与 `request`。
