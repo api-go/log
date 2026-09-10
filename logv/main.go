@@ -10,11 +10,17 @@ import (
 	"apigo.cc/go/log"
 )
 
+const maxLogLineSize = 16 * 1024 * 1024
+
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	jsonMode := flag.Bool("json", false, "output in JSON format")
 	helpMode := flag.Bool("h", false, "show help")
 	flag.BoolVar(helpMode, "help", false, "show help")
-	
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: logv [options] [file1 file2 ...]\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
@@ -34,7 +40,7 @@ func main() {
 
 	if *helpMode {
 		flag.Usage()
-		return
+		return 0
 	}
 
 	// Try to load meta file from current directory
@@ -47,38 +53,54 @@ func main() {
 		if (stat.Mode() & os.ModeCharDevice) != 0 {
 			// Stdin is a terminal and no files provided, show usage
 			flag.Usage()
-			return
+			return 0
 		}
-		process(os.Stdin, *jsonMode)
+		if err := process(os.Stdin, os.Stdout, *jsonMode); err != nil {
+			fmt.Fprintf(os.Stderr, "logv: %v\n", err)
+			return 1
+		}
 	} else {
+		exitCode := 0
 		for _, arg := range args {
 			f, err := os.Open(arg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "logv: %v\n", err)
+				exitCode = 1
 				continue
 			}
-			process(f, *jsonMode)
-			f.Close()
+			err = process(f, os.Stdout, *jsonMode)
+			closeErr := f.Close()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "logv: %s: %v\n", arg, err)
+				exitCode = 1
+			} else if closeErr != nil {
+				fmt.Fprintf(os.Stderr, "logv: %s: %v\n", arg, closeErr)
+				exitCode = 1
+			}
 		}
+		return exitCode
 	}
+	return 0
 }
 
-func process(r io.Reader, jsonMode bool) {
+func process(r io.Reader, w io.Writer, jsonMode bool) error {
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), maxLogLineSize)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) == 0 {
 			continue
 		}
-		
+
 		if jsonMode {
-			fmt.Println(log.ToJSON(line))
+			fmt.Fprintln(w, log.ToJSON(line))
 		} else {
-			fmt.Println(log.Viewable(line))
+			fmt.Fprintln(w, log.Viewable(line))
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "logv: error reading input: %v\n", err)
+		return fmt.Errorf("error reading input (maximum log line size %d MiB): %w", maxLogLineSize/(1024*1024), err)
 	}
+	return nil
 }
