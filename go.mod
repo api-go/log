@@ -3,11 +3,11 @@ module apigo.cc/go/log
 go 1.25.0
 
 require (
-	apigo.cc/go/cast v1.5.7
-	apigo.cc/go/config v1.5.7
+	apigo.cc/go/cast v1.5.8
+	apigo.cc/go/config v1.5.8
 	apigo.cc/go/file v1.5.9
 	apigo.cc/go/id v1.5.9
-	apigo.cc/go/shell v1.5.7
+	apigo.cc/go/shell v1.5.8
 )
 
 require apigo.cc/go/jsmod v1.5.4 // indirect

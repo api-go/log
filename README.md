@@ -86,7 +86,7 @@ export LOG_FILE=console
 *   `splitTag`: 文件切分格式，仅当 `file` 为文件路径时有效。
     *   语法遵循 Go 标准的 `time.Format` 布局，如 `".2006-01-02"` (按天切分)，`".2006-01-02-15"` (按小时切分)。
 *   `truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
-*   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写），默认处理 `phone,password,secret,token,accessToken,authorization`。
+*   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写，并忽略 `_`、`-`），默认处理 `phone,password,secret,token,accessToken,authorization`。该规则递归应用于嵌套对象和数组，例如 `accessToken`、`ACCESS_TOKEN` 与 `access-token` 等价。
 
 文件输出会在 logger 初始化时自动创建父目录。使用 `splitTag` 时，异步 writer service 启动前产生的日志会同步写入目标文件，启动后自动切换为异步写入。
 

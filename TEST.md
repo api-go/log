@@ -1,5 +1,10 @@
 # Test Results
 
+## v1.5.16 验证
+- 验证嵌套 map 与数组中的 `accessToken`、`ACCESS_TOKEN`、`access-token`、`Access_Token` 均按同一敏感字段脱敏。
+- Apple M3 Max / arm64：嵌套对象不启用脱敏约 `0.70 µs/op, 512 B/op, 12 allocs/op`；接入 cast 单遍规范化脱敏约 `1.44 µs/op, 696 B/op, 21 allocs/op`。旧 cast 版本继续走安全兼容回退。
+- `go test ./...` 全量通过。
+
 ## v1.5.15 验证
 - 验证 `logv` 可完整处理 256 KiB 单行输入。
 - 验证超过 16 MiB 的单行输入被有界拒绝，且错误包含明确的大小限制。

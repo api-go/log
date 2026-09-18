@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"apigo.cc/go/cast"
 )
@@ -15,7 +16,11 @@ type fieldAccessor struct {
 }
 
 var (
-	accessorsCache = make(map[string][]fieldAccessor)
+	accessorsCache                = make(map[string][]fieldAccessor)
+	castNormalizesSensitiveFields = func() bool {
+		encoded, _ := cast.ToJSONDesensitizeBytes(map[string]any{"Access_Token": "probe"}, []string{"accessToken"})
+		return !bytes.Contains(encoded, []byte("probe"))
+	}()
 )
 
 // getAccessors caches the reflection index paths for the flattened fields.
@@ -164,14 +169,143 @@ func writeValue(buf *bytes.Buffer, v reflect.Value, fieldName string, sensitiveK
 			buf.WriteString("false")
 		}
 	default:
-		// Use cast for complex types to ensure deep desensitization
-		b, _ := cast.ToJSONDesensitizeBytes(v.Interface(), sensitiveKeys)
+		// Resolve the concrete JSON paths before handing complex values to cast.
+		// cast intentionally matches exact paths; log's Sensitive contract is
+		// case- and separator-insensitive, including nested maps and structs.
+		var b []byte
+		if len(sensitiveKeys) == 0 {
+			b, _ = cast.ToJSONBytes(v.Interface())
+		} else if castNormalizesSensitiveFields {
+			b, _ = cast.ToJSONDesensitizeBytes(v.Interface(), sensitiveKeys)
+		} else {
+			// Compatibility fallback for cast versions that only match exact
+			// paths. Newer cast releases normalize in their single-pass encoder.
+			matched := collectSensitivePaths(v, sensitiveKeys)
+			if len(matched) == 0 {
+				b, _ = cast.ToJSONBytes(v.Interface())
+			} else {
+				b, _ = cast.ToJSONDesensitizeBytes(v.Interface(), matched)
+			}
+		}
 		if len(b) == 0 {
 			buf.WriteString("null")
 		} else {
 			buf.Write(b)
 		}
 	}
+}
+
+func collectSensitivePaths(value reflect.Value, sensitiveKeys []string) []string {
+	if len(sensitiveKeys) == 0 {
+		return nil
+	}
+	matched := make([]string, 0, len(sensitiveKeys))
+	seen := make(map[string]bool, len(sensitiveKeys))
+	collectSensitiveValue(value, "", sensitiveKeys, seen, &matched)
+	return matched
+}
+
+func collectSensitiveValue(value reflect.Value, currentPath string, sensitiveKeys []string, seen map[string]bool, matched *[]string) {
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() {
+		return
+	}
+	if currentPath != "" {
+		name := currentPath
+		if pos := strings.LastIndexByte(name, '.'); pos >= 0 {
+			name = name[pos+1:]
+		}
+		if sensitiveFieldMatches(name, sensitiveKeys) {
+			if !seen[currentPath] {
+				seen[currentPath] = true
+				*matched = append(*matched, currentPath)
+			}
+			return
+		}
+	}
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
+		if value.Type().Elem().Kind() == reflect.Uint8 {
+			return
+		}
+		for i := 0; i < value.Len(); i++ {
+			collectSensitiveValue(value.Index(i), currentPath, sensitiveKeys, seen, matched)
+		}
+	case reflect.Map:
+		if value.IsNil() {
+			return
+		}
+		iter := value.MapRange()
+		for iter.Next() {
+			name := cast.String(iter.Key().Interface())
+			collectSensitiveValue(iter.Value(), joinSensitivePath(currentPath, name), sensitiveKeys, seen, matched)
+		}
+	case reflect.Struct:
+		typeOfValue := value.Type()
+		for i := 0; i < typeOfValue.NumField(); i++ {
+			field := typeOfValue.Field(i)
+			if !field.IsExported() {
+				continue
+			}
+			fieldValue := value.Field(i)
+			if field.Anonymous {
+				unwrapped := fieldValue
+				for unwrapped.IsValid() && (unwrapped.Kind() == reflect.Interface || unwrapped.Kind() == reflect.Pointer) {
+					if unwrapped.IsNil() {
+						break
+					}
+					unwrapped = unwrapped.Elem()
+				}
+				if unwrapped.IsValid() && unwrapped.Kind() == reflect.Struct {
+					collectSensitiveValue(unwrapped, currentPath, sensitiveKeys, seen, matched)
+					continue
+				}
+			}
+			name, ok := sensitiveJSONFieldName(field)
+			if !ok {
+				continue
+			}
+			collectSensitiveValue(fieldValue, joinSensitivePath(currentPath, name), sensitiveKeys, seen, matched)
+		}
+	}
+}
+
+func sensitiveFieldMatches(name string, sensitiveKeys []string) bool {
+	name = fixField(name)
+	for _, key := range sensitiveKeys {
+		if name == key {
+			return true
+		}
+	}
+	return false
+}
+
+func sensitiveJSONFieldName(field reflect.StructField) (string, bool) {
+	tag := field.Tag.Get("json")
+	if tag == "-" {
+		return "", false
+	}
+	name := field.Name
+	if tag != "" {
+		if tagged := strings.Split(tag, ",")[0]; tagged != "" {
+			name = tagged
+		}
+	} else if !field.Anonymous && !strings.Contains(string(field.Tag), "keepKey") {
+		name = cast.GetLowerName(field.Name)
+	}
+	return name, true
+}
+
+func joinSensitivePath(parent, name string) string {
+	if parent == "" {
+		return name
+	}
+	return parent + "." + name
 }
 
 func writeString(buf *bytes.Buffer, s string) {

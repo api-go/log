@@ -2,6 +2,7 @@ package log
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -126,4 +127,57 @@ func TestToArrayBytes_Desensitize(t *testing.T) {
 	if extraMap["password"] != "***" {
 		t.Errorf("expected password to be desensitized, got %v", extraMap["password"])
 	}
+}
+
+func TestToArrayBytes_DesensitizeIgnoresCaseAndSeparatorsRecursively(t *testing.T) {
+	entry := &SerializerMockInfoLog{
+		SerializerMockBaseLog: SerializerMockBaseLog{LogType: "mock_sensitive_names"},
+		Message:               "Sensitive variants",
+		Extra: map[string]any{
+			"accessToken": "camel-secret",
+			"nested": map[string]any{
+				"ACCESS_TOKEN": "upper-secret",
+				"access-token": "dash-secret",
+			},
+			"items": []any{
+				map[string]any{"Access_Token": "slice-secret", "safe": "visible"},
+			},
+		},
+	}
+	RegisterType("mock_sensitive_names", entry)
+
+	encoded := Marshal(entry, []string{"accesstoken"})
+	result := string(encoded)
+	for _, secret := range []string{"camel-secret", "upper-secret", "dash-secret", "slice-secret"} {
+		if strings.Contains(result, secret) {
+			t.Fatalf("sensitive value %q was not masked: %s", secret, result)
+		}
+	}
+	if !strings.Contains(result, "visible") {
+		t.Fatalf("ordinary value was removed: %s", result)
+	}
+}
+
+func BenchmarkMarshalNestedSensitiveFields(b *testing.B) {
+	entry := &SerializerMockInfoLog{
+		SerializerMockBaseLog: SerializerMockBaseLog{LogType: "mock_sensitive_benchmark"},
+		Message:               "Sensitive benchmark",
+		Extra: map[string]any{
+			"accessToken": "secret",
+			"nested":      map[string]any{"authorization": "bearer", "safe": "visible"},
+		},
+	}
+	RegisterType("mock_sensitive_benchmark", entry)
+	b.Run("disabled", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = Marshal(entry, nil)
+		}
+	})
+	b.Run("normalized", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = Marshal(entry, []string{"phone", "password", "secret", "token", "accesstoken", "authorization"})
+		}
+	})
 }
