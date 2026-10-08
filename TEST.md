@@ -1,3 +1,22 @@
+## v1.5.17 验证（2026-10-08）
+
+- `GOWORK=off go test -v ./...`、`GOWORK=off go test -bench=. ./...`、`GOWORK=off go test -race ./...` 均通过，使用已发布依赖。
+- `TestFileRoutingLifecycle`：覆盖空与非空 SplitTag、父目录创建、启动前立即可读、40 个并发实例共享文件、停止排空、停止后同步写入、重启后写入及原文件名保持。
+- 每条文件记录通过 `cast.UnmarshalJSON` 数组验证，并验证 `Viewable` 格式化和 `ToJSON` 对象转换；现有切分轮转与 1000 条并发文件写入测试通过。
+- API 核对：当前 `ai` CLI 不支持 `tools/getExports`，改用 `GOWORK=off go doc -all` 与导出源码交叉核对，README 已补全 API。
+- 文件追加继续使用现有 `os.OpenFile` 流式句柄：已发布 `go/file` 的 `Open` 仅只读、`Create` 会截断，不提供追加句柄；父目录创建和新测试读文件使用 `go/file`。
+
+Benchmark（Apple M3 Max / arm64）：
+
+```text
+BenchmarkLoggerInfo                         1465 ns/op
+BenchmarkLogger_RequestLog_Realistic         1075 ns/op    304 B/op    15 allocs/op
+BenchmarkMarshalNestedSensitiveFields/disabled 697.0 ns/op 512 B/op    12 allocs/op
+BenchmarkMarshalNestedSensitiveFields/normalized 1400 ns/op 696 B/op 21 allocs/op
+```
+
+异步并发基准会触发队列过载丢弃，其结果代表入队压力而非文件持久化吞吐。
+
 # Test Results
 
 ## v1.5.16 验证

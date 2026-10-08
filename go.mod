@@ -10,7 +10,7 @@ require (
 	apigo.cc/go/shell v1.5.8
 )
 
-require apigo.cc/go/jsmod v1.5.4 // indirect
+require apigo.cc/go/jsmod v1.5.5 // indirect
 
 require (
 	apigo.cc/go/encoding v1.5.8 // indirect

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -67,7 +66,6 @@ func SetStdLogOutput(w io.Writer) {
 type Logger struct {
 	config        Config
 	level         LevelType
-	goLogger      *log.Logger
 	file          *FileWriter
 	writer        Writer
 	truncations   []string
@@ -145,25 +143,14 @@ func NewLogger(conf Config) *Logger {
 			}
 		} else {
 			file.EnsureParentDir(conf.File)
-			if conf.SplitTag != "" {
-				WriterService.FilesLock.RLock()
-				logger.file = WriterService.Files[conf.File+conf.SplitTag]
-				WriterService.FilesLock.RUnlock()
-				if logger.file == nil {
-					logger.file = &FileWriter{
-						fileName: conf.File,
-						splitTag: conf.SplitTag,
-					}
-					WriterService.FilesLock.Lock()
-					WriterService.Files[conf.File+conf.SplitTag] = logger.file
-					WriterService.FilesLock.Unlock()
-				}
-			} else {
-				fp, err := os.OpenFile(conf.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-				if err == nil {
-					logger.goLogger = log.New(fp, "", log.Ldate|log.Lmicroseconds)
-				}
+			WriterService.FilesLock.Lock()
+			key := conf.File + "\x00" + conf.SplitTag
+			logger.file = WriterService.Files[key]
+			if logger.file == nil {
+				logger.file = &FileWriter{fileName: conf.File, splitTag: conf.SplitTag}
+				WriterService.Files[key] = logger.file
 			}
+			WriterService.FilesLock.Unlock()
 		}
 	}
 	logger.config = conf
@@ -200,12 +187,10 @@ func (logger *Logger) writeBuf(entry LogEntry, buf []byte) {
 			writeAsync(logPayload{entry: entry, buf: buf, file: logger.file})
 			return
 		}
-		logger.file.Write(time.Now(), buf)
+		logger.file.writeSync(time.Now(), buf)
 		WriterService.FilesLock.RUnlock()
-	} else if logger.goLogger == nil {
-		fmt.Println(Viewable(string(buf)))
 	} else {
-		logger.goLogger.Print(string(buf))
+		fmt.Println(Viewable(string(buf)))
 	}
 }
 

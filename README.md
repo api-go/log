@@ -88,9 +88,20 @@ export LOG_FILE=console
 *   `truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
 *   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写，并忽略 `_`、`-`），默认处理 `phone,password,secret,token,accessToken,authorization`。该规则递归应用于嵌套对象和数组，例如 `accessToken`、`ACCESS_TOKEN` 与 `access-token` 等价。
 
-文件输出会在 logger 初始化时自动创建父目录。使用 `splitTag` 时，异步 writer service 启动前产生的日志会同步写入目标文件，启动后自动切换为异步写入。
+文件输出会在 logger 初始化时自动创建父目录。文件中每行均为纯 JSON 数组，不附加标准日志时间前缀，可直接交给 `logv`。`splitTag` 为空时保持 `file` 原名；非空时文件名为 `file + "." + time.Format(splitTag)`（布局自身带点时会出现两个点，保留既有规则）。所有文件日志在异步 writer service 启动前及停止后同步刷新，运行中异步写入；停止服务会排空队列并刷新缓冲。历史文件中的时间前缀不会自动移除。
 
 ## 🛠 API 指南
+
+### API 索引
+
+- 配置与实例：`Config`, `Logger`, `DefaultLogger`, `NewLogger`, `New`, `SetDefaultConfig`, `SetDefaultName`；实例支持 `SetName`, `SetLevel`, `CheckLevel`, `GetTraceId`, `New`。
+- 记录与填充：`Debug`, `Info`, `Warning`, `Error`, `As`；实例另支持 `Log`, `FillBase`, `FillDebug`, `FillInfo`, `FillWarning`, `FillError`, `GetCallStacks`。
+- 日志模型：`LogEntry`, `BaseLog`, `DebugLog`, `InfoLog`, `WarningLog`, `ErrorLog`；模型支持 `Reset`，基础模型提供 `IsLogEntry`, `GetBaseLog`。`LevelType` 对应 `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CLOSE`；`LogType*`、`LogEnv*` 与 `LogDefaultSensitive` 为类型、环境变量及默认脱敏常量。
+- 模型与元数据：`RegisterType`, `GetEntry`, `WithEntry`, `PoolManager`, `MetaField`, `GetMeta`, `LoadMeta`, `SetMetaFilePath`, `Marshal`。
+- 查看与转换：`Viewable`, `ToJSON`。
+- 写入扩展：`Writer`（`Log`, `Run`）, `RegisterWriterMaker`, `ConsoleWriter`（`Log`, `Run`）, `FileWriter`（`Write`, `Run`, `Close`）。文件 Writer 由 `NewLogger` 配置和共享，不应复制。
+- 生命周期：`WriterService.Start`, `WriterService.Stop`, `WriterService.Status`, `GetDroppedLogs`。异步队列过载时可能丢弃日志，计数可查询。
+- 标准日志接入：`Logger.RedirectStdLog`, `AddStdLogFilter`, `SetStdLogOutput`。
 
 ### 核心功能
 
