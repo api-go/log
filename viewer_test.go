@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"apigo.cc/go/log"
+	"github.com/api-go/log"
 )
 
 func TestViewable(t *testing.T) {

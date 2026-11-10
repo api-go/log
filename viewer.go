@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"apigo.cc/go/cast"
-	"apigo.cc/go/shell"
+	"github.com/api-go/cast"
+	"github.com/api-go/shell"
 )
 
 var errorLineMatcher = regexp.MustCompile(`(\w+\.go:\d+)`)

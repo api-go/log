@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"apigo.cc/go/cast"
-	"apigo.cc/go/file"
-	"apigo.cc/go/id"
+	"github.com/api-go/cast"
+	"github.com/api-go/file"
+	"github.com/api-go/id"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"apigo.cc/go/log"
+	"github.com/api-go/log"
 )
 
 const maxLogLineSize = 16 * 1024 * 1024

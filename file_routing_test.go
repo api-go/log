@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"apigo.cc/go/cast"
-	"apigo.cc/go/file"
-	"apigo.cc/go/log"
+	"github.com/api-go/cast"
+	"github.com/api-go/file"
+	"github.com/api-go/log"
 )
 
 func TestFileRoutingLifecycle(t *testing.T) {

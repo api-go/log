@@ -103,7 +103,7 @@ BenchmarkLogger_RequestLog_Realistic-16     1000000    1111 ns/op    975 B/op   
 === RUN   TestPrecisionViewable
 --- PASS: TestPrecisionViewable (0.00s)
 PASS
-ok  	apigo.cc/go/log	3.301s
+ok  	github.com/api-go/log	3.301s
 ```
 
 ## 核心指标验证
@@ -116,3 +116,13 @@ ok  	apigo.cc/go/log	3.301s
 - **文件切分**: `TestSplitTag` 实测了基于时间滚动的文件切分能力。
 - **启动期文件写入**: `TestLoggerCore_SplitFileWritesBeforeWriterServiceStarts` 验证异步服务启动前日志直接写入 split 文件。
 - **默认配置覆盖**: `TestLoadDefaultConfig` 与 `TestSetDefaultConfigKeepsLoggerWhenEffectiveConfigIsUnchanged` 验证代码预设、文件覆盖和无变化复用行为。
+
+## GitHub migration validation (pending release)
+
+Module paths and internal dependency versions are migrated. Development verification uses GOWORK=off and explicit sibling replacements; remove these replacements before release. See migration validation logs for actual results. Existing unrelated working changes are preserved and require separate review.
+
+API inventory verification: `GOWORK=off go doc` succeeded; output retained in the migration validation directory. Source exports were preserved by the path migration.
+
+## GitHub release verification
+
+GOWORK=off go test -v ./... and go test -bench=. ./... passed using published GitHub dependencies, without local replacements. go mod verify passed.

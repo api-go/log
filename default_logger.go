@@ -1,7 +1,7 @@
 package log
 
 import (
-	"apigo.cc/go/config"
+	"github.com/api-go/config"
 )
 
 var (

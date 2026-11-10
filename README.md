@@ -15,13 +15,13 @@
 ## 📦 安装
 
 ```bash
-go get apigo.cc/go/log
+go get github.com/api-go/log
 ```
 
 ## 💡 快速开始
 
 ```go
-import "apigo.cc/go/log"
+import "github.com/api-go/log"
 
 // 默认 logger (通过 log.json 或环境变量配置)
 func main() {
@@ -119,7 +119,7 @@ export LOG_FILE=console
     * `Log(LogEntry)` —— 记录自定义结构的日志。
 
 5.  **独立可视化工具 (`logv`)**
-    *   **安装**: `go install apigo.cc/go/log/logv@latest`
+    *   **安装**: `go install github.com/api-go/log/logv@latest`
     *   **使用**: `tail -f app.log | logv` 或 `tail -f app.log | logv -json`。
     *   `logv` 从当前目录加载 `.log.meta.json`；基础 Meta 会与应用已有业务 Meta 合并，不会覆盖业务日志类型。
     *   单条日志最大支持 16 MiB；超过限制时会返回非零退出码并报告读取错误。
@@ -150,7 +150,7 @@ export LOG_FILE=console
 ```go
 package main
 
-import "apigo.cc/go/log"
+import "github.com/api-go/log"
 
 // 1. 定义结构体 (字段从 pos:6 开始)
 type DBErrorLog struct {

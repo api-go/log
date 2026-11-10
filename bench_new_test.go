@@ -3,7 +3,7 @@ package log_test
 import (
 	"testing"
 
-	"apigo.cc/go/log"
+	"github.com/api-go/log"
 )
 
 // Define local log types for testing since they are commented out in the main package

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"apigo.cc/go/cast"
+	"github.com/api-go/cast"
 )
 
 type fieldAccessor struct {

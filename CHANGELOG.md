@@ -1,3 +1,7 @@
+## [v1.5.18] - 2026-11-10
+
+- 迁移至 github.com/api-go/log，同步内部模块路径与依赖。
+
 # Changelog
 
 ## v1.5.17 (2026-10-08)
@@ -24,7 +28,7 @@
 - **依赖对齐**: 升级 `config` 与 `file` 至当前已发布版本。
 
 ## v1.5.12 (2026-09-05)
-- **依赖对齐**: 升级全部 `apigo.cc/go/*` 依赖至当前已发布版本。
+- **依赖对齐**: 升级全部 `github.com/api-go/*` 依赖至当前已发布版本。
 
 ## [1.5.11] - 2026-08-24
 - **Log Viewer 元数据修复**:
@@ -91,7 +95,7 @@
 ## [1.3.1] - 2026-05-12
 - **架构升级: 引入 LoggerService**:
   - **解耦重构**: 重构全局变量管理，引入 `loggerService` 结构体，集中化管理异步写入协程、Writers 对象池、文件句柄与丢弃计数。
-  - **生命周期管理**: 实现了 `Start(ctx, logger)`, `Stop(ctx)`, `Health()` 接口，完美支持与 `apigo.cc/go/starter` 的基础设施集成。
+  - **生命周期管理**: 实现了 `Start(ctx, logger)`, `Stop(ctx)`, `Health()` 接口，完美支持与 `github.com/api-go/starter` 的基础设施集成。
   - **安全性增强**: 优化了平滑停止逻辑，确保 `Stop` 调用时能完整 Flush 缓冲区数据。
 - **功能增强**:
   - **动态应用名**: 新增 `SetDefaultName(name)` 全局方法，支持在微服务启动后动态设置应用名称，并自动同步至 `DefaultLogger`。

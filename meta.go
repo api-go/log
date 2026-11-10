@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"apigo.cc/go/cast"
-	"apigo.cc/go/file"
+	"github.com/api-go/cast"
+	"github.com/api-go/file"
 )
 
 // MetaField describes the serialization and visualization metadata for a single log field.

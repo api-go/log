@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"apigo.cc/go/file"
-	"apigo.cc/go/log"
+	"github.com/api-go/file"
+	"github.com/api-go/log"
 )
 
 func TestSplitTag(t *testing.T) {
