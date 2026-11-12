@@ -22,3 +22,6 @@ Dictionary and candidate pools each have an 8 MiB byte budget and 16384-entry ca
 ### Release v1.5.19 — 2026-11-12
 
 Released GitHub dependencies; no local development replacements. Full tests and benchmarks validated with GOWORK=off.
+
+
+Default human-readable log/logv output preserves ANSI colors; JSON/raw output remains structured. Existing archives retain field indices while matching fields use current presentation metadata.

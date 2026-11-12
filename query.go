@@ -53,7 +53,23 @@ func formatQueryLine(line []byte, opts QueryOptions, meta map[string][]MetaField
 	}
 	get := GetMeta
 	if meta != nil {
-		get = func(name string) []MetaField { return meta[name] }
+		get = func(name string) []MetaField {
+			fields := append([]MetaField(nil), meta[name]...)
+			// Keep archive serialization indices, but use current presentation
+			// for matching fields so existing files benefit from style updates.
+			current := GetMeta(name)
+			for i := range fields {
+				for _, style := range current {
+					if fields[i].Name == style.Name {
+						index := fields[i].Index
+						fields[i] = style
+						fields[i].Index = index
+						break
+					}
+				}
+			}
+			return fields
+		}
 	}
 	if opts.JSON {
 		return toJSON(string(line), get)

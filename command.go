@@ -14,7 +14,7 @@ import (
 // starting application services. Flags may appear before or after filenames.
 func RunCommand(ctx context.Context, name string, args []string, input io.Reader, output io.Writer) error {
 	_ = LoadMeta(metaFilePath) // Retain legacy stdin/plaintext custom-model formatting.
-	opts := QueryOptions{}
+	opts := QueryOptions{Color: true}
 	var dictionary string
 	var paths []string
 	var selected, followSet bool
