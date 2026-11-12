@@ -227,3 +227,7 @@ func LogDBError(logger *log.Logger, db, sql string, args []any, err error, usedT
 测试全部通过，异步写入与性能达标。
 
 详见：[TEST.md](./TEST.md)
+
+### 实时日志开发联动（未发布，2026-11-12）
+
+本次通过 go.mod 的显式本地 replace 联动 timer，不依赖 go.work。文件日志默认采用 `.gz` + 同文件级 `.dict`；两份文件必须一起管理，使用 logv 或应用内置 log/logv 读取。`NoCompress=true` 保留旧明文格式。发布前须按依赖顺序发布新版本并移除临时 replace；当前索引版本仍表示已发布版本。

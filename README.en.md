@@ -11,3 +11,7 @@ Repeated JSON string tokens are interned on second occurrence, with bounded dict
 `logv [files ...]` restores compressed files and their automatically paired dictionaries. Without files it formats stdin; compressed stdin requires `-dict path`. Legacy plaintext remains readable.
 
 Public query APIs: `QueryOptions`, `LogPath`, `DefaultConfig`, `Query`, `QueryFile`, `FormatStream`, `FormatArchiveStream`, and `RunCommand`. All query functions accept a context and an output writer. `FileWriter.Err` reports output failures; `WriterService.Stop` flushes, closes files and returns failures. See [Chinese API reference](README.md) for the complete logger/model/extension API and configuration.
+
+### Realtime log integration (unreleased, 2026-11-12)
+
+Explicit local go.mod replacements link this change without go.work. File logs default to paired .gz/.dict files, read using logv or built-in application log commands. Keep both files together; NoCompress retains plaintext. Release dependencies in order and remove development replacements before tagging. Published version claims remain unchanged.

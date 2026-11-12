@@ -135,3 +135,7 @@ GOWORK=off go test -v ./... and go test -bench=. ./... passed using published Gi
 - 开发验证使用 /tmp/apigo-validation-log.mod 显式替换本次 timer 修复；不依赖 go.work。
 
 验证结果：完整测试与 race detector 通过；全量基准通过（benchtime=100ms）。同步压缩写入 BenchmarkArchiveWrite：9514 ns/op、3114 B/op、51 allocs/op（本机单次结果，不代表线上吞吐；异步路径另受队列容量约束）。
+
+## 日志依赖联动 — 2026-11-12
+
+开发验证使用 GOWORK=off 与 go.mod 的显式本地 replace；执行完整测试、全量基准（benchtime=100ms），API 用 go doc 与导出源码交叉核对。结果记录在 /tmp/apigo-log-integration-*.txt。
