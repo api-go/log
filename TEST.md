@@ -145,3 +145,8 @@ GOWORK=off go test -v ./... and go test -bench=. ./... passed using published Gi
 ### 模拟日志体积（10000 条，非线上承诺）
 
 独立 TraceID、重复 UA/请求头，完整还原 10000 条、丢弃 0。原始 3698890 B；同一 BestSpeed 下连续 gzip 127008 B、约 64 KiB 独立块 gzip 147006 B、字典压缩数据 135748 B + 字典 4859 B = 140607 B。分块对照未计其独立模型元数据文件。共享池对比独立块收益有限，不保证小于连续 gzip；本方案优先保留随机尾读与独立恢复。
+
+
+## v1.5.19 发布验证 — 2026-11-12
+
+GOWORK=off；正式 GitHub 依赖，无本地 replace。完整 go test -v ./... 与 go test -bench=. -benchtime=100ms ./... 通过；Service/Gateway 设置 GODEBUG=http2xconnect=1。API 核对使用 go doc . 与导出源码（getExports 工具不可用）。可选外部环境测试按原规则跳过。详细输出 /tmp/apigo-log-release-tests.txt 与 /tmp/apigo-log-release-bench.txt。
