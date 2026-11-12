@@ -126,3 +126,12 @@ API inventory verification: `GOWORK=off go doc` succeeded; output retained in th
 ## GitHub release verification
 
 GOWORK=off go test -v ./... and go test -bench=. ./... passed using published GitHub dependencies, without local replacements. go mod verify passed.
+
+## 实时压缩日志验证（2026-11-12，未发布）
+
+- 压缩往返、嵌套脱敏、Unicode/转义、head/tail、重新打开追加、缺失/错配/损坏字典、不完整尾部恢复、follow 取消、压缩 stdin。
+- 原有文件路由和生命周期测试显式验证 NoCompress 明文路径。
+- API 使用 GOWORK=off go doc 与导出源码交叉核对（getExports 不在本仓库）。
+- 开发验证使用 /tmp/apigo-validation-log.mod 显式替换本次 timer 修复；不依赖 go.work。
+
+验证结果：完整测试与 race detector 通过；全量基准通过（benchtime=100ms）。同步压缩写入 BenchmarkArchiveWrite：9514 ns/op、3114 B/op、51 allocs/op（本机单次结果，不代表线上吞吐；异步路径另受队列容量约束）。

@@ -12,7 +12,7 @@ func TestLoggerReliability(t *testing.T) {
 	logFile := "reliability.log"
 	defer os.Remove(logFile)
 
-	logger := NewLogger(Config{
+	logger := NewLogger(Config{NoCompress: true,
 		File: logFile,
 	})
 

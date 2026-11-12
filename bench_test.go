@@ -7,11 +7,11 @@ import (
 
 func BenchmarkLoggerInfo(b *testing.B) {
 	// 创建一个临时日志文件用于测试
-	logger := NewLogger(Config{
+	logger := NewLogger(Config{NoCompress: true,
 		File: "bench.log",
 	})
 	defer os.Remove("bench.log")
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		logger.Info("bench log", "index", i)
@@ -20,7 +20,7 @@ func BenchmarkLoggerInfo(b *testing.B) {
 }
 
 func BenchmarkLoggerAsyncConcurrent(b *testing.B) {
-	logger := NewLogger(Config{
+	logger := NewLogger(Config{NoCompress: true,
 		File: "bench_async.log",
 	})
 	defer os.Remove("bench_async.log")

@@ -17,7 +17,7 @@ type BenchRequestLog struct {
 
 func BenchmarkLogger_RequestLog_Realistic(b *testing.B) {
 	// 使用文件模式但指向空设备，或者在配置中支持 Discard
-	conf := log.Config{Level: "info", File: "/dev/null"}
+	conf := log.Config{NoCompress: true, Level: "info", File: "/dev/null"}
 	logger := log.NewLogger(conf)
 
 	b.ResetTimer()

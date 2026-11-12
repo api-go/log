@@ -88,7 +88,32 @@ export LOG_FILE=console
 *   `truncations`: 堆栈信息截断前缀（多个以逗号分隔，默认截断 `github.com/`, `golang.org/`, `/apigo.cc/`）。
 *   `sensitive`: 需要自动脱敏的字段名（多个以逗号分隔，不区分大小写，并忽略 `_`、`-`），默认处理 `phone,password,secret,token,accessToken,authorization`。该规则递归应用于嵌套对象和数组，例如 `accessToken`、`ACCESS_TOKEN` 与 `access-token` 等价。
 
-文件输出会在 logger 初始化时自动创建父目录。文件中每行均为纯 JSON 数组，不附加标准日志时间前缀，可直接交给 `logv`。`splitTag` 为空时保持 `file` 原名；非空时文件名为 `file + "." + time.Format(splitTag)`（布局自身带点时会出现两个点，保留既有规则）。所有文件日志在异步 writer service 启动前及停止后同步刷新，运行中异步写入；停止服务会排空队列并刷新缓冲。历史文件中的时间前缀不会自动移除。
+文件输出默认实时分块压缩，产生 `file[.split].gz` 与同名去除 `.gz` 后缀的 `.dict`。两者必须一起复制、归档和删除；每份文件的独立有界字典在重复字符串第二次出现时建立引用。字典携带身份校验和创建时的日志模型元数据。使用本包工具读取，不支持 zcat。设置 `NoCompress: true`（配置键 `noCompress`）保留原有明文 JSONL 输出及文件名。
+
+每块最多累计约 64 KiB 原始日志（单条最大 16 MiB），运行中的后台服务每 200ms 刷新，启动前/停止后同步写入。字典更新先同步落盘再追加引用它的压缩块；日志刷新不等于 fsync。重启修复不完整尾块，完整块校验失败则报错。单个文件只允许一个进程写入。动态注册日志类型应在首次写入文件前完成；模型布局变化请换新文件。
+
+```sh
+logv logs/app.log.20261112.gz
+logv -json logs/app.log.20261112.gz
+cat logs/app.log.20261112.gz | logv -dict logs/app.log.20261112.dict
+server log                          # 当前配置文件，-tail 100 -f
+server log -tail 100 | grep timeout
+server log -cat logs/app.log.20261112.gz
+```
+
+应用可调用 `RunCommand(ctx, "log", args, stdin, stdout)`；`logv` 无文件名时格式化 stdin。参数采用单横线且可出现在文件名前后。`-tail N`、`-head N`、`-cat` 互斥；显式范围默认读完退出，添加 `-f` 跟随；`-json` 输出对象 JSON，`-raw` 输出还原后的原始 JSONL，`-color` 显式启用颜色。默认输出无 ANSI，可接原生 grep/awk。无文件的 log 命令按配置日期跨分割跟随。索引在块头中，tail 跳过历史块的解压，首次定位仍需扫描块头。
+
+### 查询 API
+
+- `QueryOptions`：Head、Tail、Follow、JSON、Raw、Color。
+- `LogPath(Config, time.Time) (string, error)`：解析当前物理日志路径。
+- `DefaultConfig() Config`：当前默认 logger 的有效配置。
+- `Query(context.Context, Config, io.Writer, QueryOptions) error`：读取配置日志，支持跨日期跟随。
+- `QueryFile(context.Context, string, io.Writer, QueryOptions) error`：读取指定压缩文件与自动匹配的字典，兼容历史明文。
+- `FormatStream(context.Context, io.Reader, io.Writer, QueryOptions) error`：格式化明文 stdin。
+- `FormatArchiveStream(context.Context, io.Reader, io.Writer, string, QueryOptions) error`：使用显式字典读取压缩 stdin。
+- `RunCommand(context.Context, string, []string, io.Reader, io.Writer) error`：无进程退出、无全局 flags、无应用服务启动的 log/logv 命令入口。
+- `FileWriter.Err() error`：最近一次文件输出错误；WriterService.Stop 汇总文件错误并关闭文件。
 
 ## 🛠 API 指南
 

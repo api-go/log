@@ -18,7 +18,7 @@ func TestFileRoutingLifecycle(t *testing.T) {
 			log.WriterService.Stop(nil)
 			t.Cleanup(func() { log.WriterService.Stop(nil) })
 			path := filepath.Join(t.TempDir(), "logs", "app.log")
-			logger := log.NewLogger(log.Config{File: path, SplitTag: splitTag})
+			logger := log.NewLogger(log.Config{NoCompress: true, File: path, SplitTag: splitTag})
 			logger.Info("before-start")
 			target := path
 			if splitTag != "" {
@@ -35,7 +35,7 @@ func TestFileRoutingLifecycle(t *testing.T) {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					shared := log.NewLogger(log.Config{File: path, SplitTag: splitTag})
+					shared := log.NewLogger(log.Config{NoCompress: true, File: path, SplitTag: splitTag})
 					shared.Info("during-service")
 				}()
 			}

@@ -14,7 +14,7 @@ func TestSplitTag(t *testing.T) {
 	// 使用每秒切分的标签，方便测试文件轮转
 	splitTag := ".20060102150405"
 
-	conf := log.Config{
+	conf := log.Config{NoCompress: true,
 		Name:     "test-split",
 		Level:    "info",
 		File:     logFile,

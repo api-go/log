@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -115,7 +116,16 @@ func (s *writerService) Stop(_ context.Context) error {
 			s.StopChan = nil
 		}
 	}
-	return nil
+	s.FilesLock.Lock()
+	defer s.FilesLock.Unlock()
+	var failures []error
+	for _, f := range s.Files {
+		f.Close()
+		if err := f.Err(); err != nil {
+			failures = append(failures, err)
+		}
+	}
+	return errors.Join(failures...)
 }
 
 // Status implements starter.Service interface.

@@ -16,7 +16,9 @@ var errorLineMatcher = regexp.MustCompile(`(\w+\.go:\d+)`)
 var codeFileMatcher = regexp.MustCompile(`(\w+?\.)(go|js)`)
 var workspaceRoot, _ = os.Getwd()
 
-func Viewable(line string) string {
+func Viewable(line string) string { return viewable(line, GetMeta) }
+
+func viewable(line string, getMeta func(string) []MetaField) string {
 	line = strings.TrimSpace(line)
 	if !strings.HasPrefix(line, "[") {
 		// Fallback highlight for non-array strings
@@ -45,10 +47,10 @@ func Viewable(line string) string {
 	if len(arr) > 2 {
 		logType = cast.String(arr[2])
 	}
-	meta := GetMeta(logType)
+	meta := getMeta(logType)
 	if len(meta) == 0 {
 		logType = cast.String(arr[1])
-		meta = GetMeta(logType)
+		meta = getMeta(logType)
 	}
 
 	if len(meta) == 0 {
@@ -173,7 +175,9 @@ func Viewable(line string) string {
 }
 
 // ToJSON converts a JSON array log line to a standard JSON object string based on metadata.
-func ToJSON(line string) string {
+func ToJSON(line string) string { return toJSON(line, GetMeta) }
+
+func toJSON(line string, getMeta func(string) []MetaField) string {
 	line = strings.TrimSpace(line)
 	if !strings.HasPrefix(line, "[") {
 		return line
@@ -192,10 +196,10 @@ func ToJSON(line string) string {
 	if len(arr) > 2 {
 		logType = cast.String(arr[2])
 	}
-	meta := GetMeta(logType)
+	meta := getMeta(logType)
 	if len(meta) == 0 {
 		logType = cast.String(arr[1])
-		meta = GetMeta(logType)
+		meta = getMeta(logType)
 	}
 
 	if len(meta) == 0 {

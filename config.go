@@ -2,6 +2,7 @@ package log
 
 // Config 日志配置
 type Config struct {
+	NoCompress  bool // Keep legacy plaintext file output instead of gzip + dictionary.
 	Name        string
 	Level       string
 	File        string

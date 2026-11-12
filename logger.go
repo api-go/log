@@ -144,10 +144,10 @@ func NewLogger(conf Config) *Logger {
 		} else {
 			file.EnsureParentDir(conf.File)
 			WriterService.FilesLock.Lock()
-			key := conf.File + "\x00" + conf.SplitTag
+			key := fmt.Sprintf("%s\x00%s\x00%t", conf.File, conf.SplitTag, conf.NoCompress)
 			logger.file = WriterService.Files[key]
 			if logger.file == nil {
-				logger.file = &FileWriter{fileName: conf.File, splitTag: conf.SplitTag}
+				logger.file = &FileWriter{fileName: conf.File, splitTag: conf.SplitTag, noCompress: conf.NoCompress}
 				WriterService.Files[key] = logger.file
 			}
 			WriterService.FilesLock.Unlock()

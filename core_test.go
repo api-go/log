@@ -11,7 +11,7 @@ import (
 
 func TestLoggerCore_Initialization(t *testing.T) {
 	// Test default configuration initialization
-	conf := Config{}
+	conf := Config{NoCompress: true}
 	logger := NewLogger(conf)
 
 	if logger.config.Level != "info" {
@@ -24,7 +24,7 @@ func TestLoggerCore_Initialization(t *testing.T) {
 
 func TestLoggerCore_SplitFileInitialization(t *testing.T) {
 	logFile := filepath.Join(t.TempDir(), "logs", "server.log")
-	logger := NewLogger(Config{
+	logger := NewLogger(Config{NoCompress: true,
 		File:     logFile,
 		SplitTag: "20060102",
 	})
@@ -43,7 +43,7 @@ func TestLoggerCore_SplitFileWritesBeforeWriterServiceStarts(t *testing.T) {
 	}
 
 	logFile := filepath.Join(t.TempDir(), "logs", "server.log")
-	logger := NewLogger(Config{
+	logger := NewLogger(Config{NoCompress: true,
 		File:     logFile,
 		SplitTag: "20060102",
 	})
@@ -78,7 +78,7 @@ func TestLoadDefaultConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defaultConfig = Config{
+	defaultConfig = Config{NoCompress: true,
 		Name:  "built-in",
 		Level: "debug",
 		File:  "logs/server.log",
@@ -105,7 +105,7 @@ func TestSetDefaultConfig(t *testing.T) {
 		DefaultLogger.RedirectStdLog()
 	})
 
-	SetDefaultConfig(Config{Name: "application-default", Level: "debug"})
+	SetDefaultConfig(Config{NoCompress: true, Name: "application-default", Level: "debug"})
 
 	if DefaultLogger.config.Name != "application-default" {
 		t.Fatalf("expected rebuilt default logger name, got %q", DefaultLogger.config.Name)
@@ -124,11 +124,11 @@ func TestSetDefaultConfigKeepsLoggerWhenEffectiveConfigIsUnchanged(t *testing.T)
 		DefaultLogger.RedirectStdLog()
 	})
 
-	defaultConfig = Config{}
-	DefaultLogger = NewLogger(Config{Name: "configured", Level: "info"})
+	defaultConfig = Config{NoCompress: true}
+	DefaultLogger = NewLogger(Config{NoCompress: true, Name: "configured", Level: "info"})
 	currentLogger := DefaultLogger
 
-	SetDefaultConfig(Config{Name: "configured"})
+	SetDefaultConfig(Config{NoCompress: true, Name: "configured"})
 
 	if DefaultLogger != currentLogger {
 		t.Fatal("expected unchanged effective config to keep the existing logger")
@@ -136,7 +136,7 @@ func TestSetDefaultConfigKeepsLoggerWhenEffectiveConfigIsUnchanged(t *testing.T)
 }
 
 func TestLoggerCore_Concurrency(t *testing.T) {
-	conf := Config{
+	conf := Config{NoCompress: true,
 		Name:  "concurrent-test",
 		Level: "info",
 	}
