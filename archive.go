@@ -23,6 +23,7 @@ var archiveCompressors = sync.Pool{New: func() any { writer, _ := gzip.NewWriter
 
 const archiveMagic = "APIGOLG1"
 const dictLimit = 16384
+const dictByteLimit = 8 << 20
 const maxArchiveLine = 16 << 20
 const maxArchiveBlock = 32 << 20
 const archiveExtraSize = 36
@@ -34,6 +35,8 @@ type archiveDictionary struct {
 	ids      map[string]uint32
 	seen     map[string]bool
 	end      int64
+	size     int
+	seenSize int
 }
 
 func dictionaryPath(path string) string { return strings.TrimSuffix(path, ".gz") + ".dict" }
@@ -82,6 +85,10 @@ func loadDictionary(path string, repair bool) (*archiveDictionary, error) {
 		value := data[pos+4 : pos+4+size]
 		if crc32.ChecksumIEEE(value) != binary.LittleEndian.Uint32(data[pos+4+size:pos+8+size]) {
 			return nil, errors.New("dictionary entry checksum mismatch")
+		}
+		d.size += len(value)
+		if d.size > dictByteLimit {
+			return nil, errors.New("log dictionary exceeds byte budget")
 		}
 		d.ids[string(value)] = uint32(len(d.Values))
 		d.Values = append(d.Values, string(value))
@@ -158,18 +165,21 @@ func (d *archiveDictionary) encode(line []byte, additions *bytes.Buffer) []byte 
 		}
 		value := string(line[i:end])
 		key, ok := d.ids[value]
-		if !ok && len(value) >= 8 && len(value) <= 4096 && len(d.Values) < dictLimit {
+		if !ok && len(value) >= 8 && len(value) <= 4096 && len(d.Values) < dictLimit && d.size+len(value) <= dictByteLimit {
 			if d.seen[value] {
 				key = uint32(len(d.Values))
 				d.Values = append(d.Values, value)
+				d.size += len(value)
 				d.ids[value] = key
 				ok = true
 				delete(d.seen, value)
+				d.seenSize -= len(value)
 				_ = binary.Write(additions, binary.LittleEndian, uint32(len(value)))
 				additions.WriteString(value)
 				_ = binary.Write(additions, binary.LittleEndian, crc32.ChecksumIEEE([]byte(value)))
-			} else if len(d.seen) < dictLimit {
+			} else if len(d.seen) < dictLimit && d.seenSize+len(value) <= dictByteLimit {
 				d.seen[value] = true
+				d.seenSize += len(value)
 			}
 		}
 		if ok {

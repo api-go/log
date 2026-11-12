@@ -15,3 +15,5 @@ Public query APIs: `QueryOptions`, `LogPath`, `DefaultConfig`, `Query`, `QueryFi
 ### Realtime log integration (unreleased, 2026-11-12)
 
 Explicit local go.mod replacements link this change without go.work. File logs default to paired .gz/.dict files, read using logv or built-in application log commands. Keep both files together; NoCompress retains plaintext. Release dependencies in order and remove development replacements before tagging. Published version claims remain unchanged.
+
+Dictionary and candidate pools each have an 8 MiB byte budget and 16384-entry cap; values beyond limits stay literal. Follow drains the old file before switching and applies the initial tail limit only once. Legacy inputs retain .log.meta.json formatting, while archives use their own metadata snapshots.

@@ -13,6 +13,7 @@ import (
 // RunCommand implements log and logv without global flags, process exit or
 // starting application services. Flags may appear before or after filenames.
 func RunCommand(ctx context.Context, name string, args []string, input io.Reader, output io.Writer) error {
+	_ = LoadMeta(metaFilePath) // Retain legacy stdin/plaintext custom-model formatting.
 	opts := QueryOptions{}
 	var dictionary string
 	var paths []string
@@ -27,6 +28,11 @@ func RunCommand(ctx context.Context, name string, args []string, input io.Reader
 		case "-h", "-help", "--help":
 			_, err := fmt.Fprintln(output, "Usage: log [-tail N|-head N|-cat] [-f] [-json|-raw] [files ...]\n       logv [-json|-raw] [files ...]\nlog defaults to the configured file, -tail 100 -f. logv without files formats stdin.")
 			return err
+		case "-config", "--config":
+			if i+1 >= len(args) {
+				return errors.New("config requires a path")
+			}
+			i++ // Config.Load already applies process overlays.
 		case "-dict":
 			if i+1 >= len(args) {
 				return errors.New("-dict requires a dictionary file")
@@ -68,6 +74,9 @@ func RunCommand(ctx context.Context, name string, args []string, input io.Reader
 			}
 			selected = true
 		default:
+			if strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "-config=") {
+				continue
+			}
 			if strings.HasPrefix(arg, "-") {
 				return fmt.Errorf("unknown log option %s", arg)
 			}

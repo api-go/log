@@ -139,3 +139,5 @@ GOWORK=off go test -v ./... and go test -bench=. ./... passed using published Gi
 ## 日志依赖联动 — 2026-11-12
 
 开发验证使用 GOWORK=off 与 go.mod 的显式本地 replace；执行完整测试、全量基准（benchtime=100ms），API 用 go doc 与导出源码交叉核对。结果记录在 /tmp/apigo-log-integration-*.txt。
+
+最终补充验证：跨秒分割后一次写入 130 条时不重复应用 tail=1；601 条并发字典增长与 follow；完整 race 测试和全量基准通过。

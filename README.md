@@ -231,3 +231,5 @@ func LogDBError(logger *log.Logger, db, sql string, args []any, err error, usedT
 ### 实时日志开发联动（未发布，2026-11-12）
 
 本次通过 go.mod 的显式本地 replace 联动 timer，不依赖 go.work。文件日志默认采用 `.gz` + 同文件级 `.dict`；两份文件必须一起管理，使用 logv 或应用内置 log/logv 读取。`NoCompress=true` 保留旧明文格式。发布前须按依赖顺序发布新版本并移除临时 replace；当前索引版本仍表示已发布版本。
+
+字典与候选字符串分别限制为 8 MiB，最多 16384 条；超过限制时保留原始字符串。follow 在新分割文件出现后排空旧文件，再从新文件第一条开始，初始 tail 限制只应用一次。历史明文/标准输入继续使用当前 .log.meta.json，压缩文件使用字典内的历史模型快照。

@@ -13,6 +13,7 @@ import (
 
 	"github.com/api-go/file"
 	"github.com/api-go/log"
+	"github.com/api-go/timer"
 )
 
 func archiveFixture(t *testing.T, n int) string {
@@ -190,5 +191,95 @@ func TestArchiveFollowAndCompressedStdin(t *testing.T) {
 	}
 	if !strings.Contains(restored.String(), "follow-appended") {
 		t.Fatal("stdin lost appended line")
+	}
+}
+
+type rotationOutput struct {
+	bytes.Buffer
+	start   func()
+	cancel  context.CancelFunc
+	started bool
+	lines   int
+}
+
+func (w *rotationOutput) Write(p []byte) (int, error) {
+	n, err := w.Buffer.Write(p)
+	w.lines += bytes.Count(p, []byte{'\n'})
+	if !w.started {
+		w.started = true
+		w.start()
+	}
+	if bytes.Contains(p, []byte("rotation-0129")) {
+		w.cancel()
+	}
+	return n, err
+}
+
+func TestConfiguredFollowDrainsRotationWithoutRepeatingTailLimit(t *testing.T) {
+	_ = log.WriterService.Stop(nil)
+	conf := log.Config{File: filepath.Join(t.TempDir(), "rotation.log"), SplitTag: "20060102150405"}
+	logger := log.NewLogger(conf)
+	logger.Info("initial-record")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	out := &rotationOutput{cancel: cancel}
+	out.start = func() {
+		delay := time.Until(time.Now().Truncate(time.Second).Add(time.Second)) + 50*time.Millisecond
+		timer.NewDebouncer(delay, func() {
+			defer close(done)
+			for i := 0; i < 130; i++ {
+				logger.Info(fmt.Sprintf("rotation-%04d", i))
+			}
+		}).Trigger()
+	}
+	err := log.Query(ctx, conf, out, log.QueryOptions{Tail: 1, Follow: true, Raw: true})
+	<-done
+	if !errors.Is(err, context.Canceled) || out.lines != 131 || !strings.Contains(out.String(), "rotation-0000") {
+		t.Fatalf("rotation lost records: %v lines=%d %s", err, out.lines, out.String())
+	}
+	if err = log.WriterService.Stop(nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type countLogOutput struct {
+	count  int
+	want   int
+	cancel context.CancelFunc
+}
+
+func (w *countLogOutput) Write(p []byte) (int, error) {
+	w.count += bytes.Count(p, []byte{'\n'})
+	if w.count >= w.want {
+		w.cancel()
+	}
+	return len(p), nil
+}
+
+func TestConcurrentDictionaryGrowthWhileFollowing(t *testing.T) {
+	_ = log.WriterService.Stop(nil)
+	conf := log.Config{File: filepath.Join(t.TempDir(), "growth.log")}
+	logger := log.NewLogger(conf)
+	logger.Info("seed")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 300; i++ {
+			value := fmt.Sprintf("new-dictionary-value-%04d", i)
+			logger.Info(value)
+			logger.Info(value)
+		}
+	}()
+	out := &countLogOutput{want: 601, cancel: cancel}
+	err := log.Query(ctx, conf, out, log.QueryOptions{Follow: true, Raw: true})
+	<-done
+	if !errors.Is(err, context.Canceled) || out.count != 601 {
+		t.Fatalf("dictionary growth: %v count=%d", err, out.count)
+	}
+	if err = log.WriterService.Stop(nil); err != nil {
+		t.Fatal(err)
 	}
 }

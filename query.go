@@ -119,16 +119,32 @@ func query(ctx context.Context, resolve func() string, output io.Writer, opts Qu
 	var identity string
 	var offset int64
 	first := true
+	rotationPending := false
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		current := resolve()
+		if current != path && path != "" && opts.Follow {
+			if !file.Exists(current) {
+				current = path
+				rotationPending = false
+			} else if !rotationPending {
+				current = path
+				rotationPending = true
+			} else {
+				rotationPending = false
+			}
+		}
 		if current != path {
+			initial := path == ""
+			cachedDictionary = nil
+			dictionaryInfo = nil
+			previousInfo = nil
 			path = current
 			offset = 0
 			identity = ""
-			first = true
+			first = initial
 		}
 		fp, err := file.Open(path)
 		if os.IsNotExist(err) && opts.Follow {
@@ -140,7 +156,7 @@ func query(ctx context.Context, resolve func() string, output io.Writer, opts Qu
 			} else {
 				if previousInfo != nil && !os.SameFile(previousInfo, info) {
 					offset = 0
-					first = true
+					first = !opts.Follow
 					cachedDictionary = nil
 				}
 				previousInfo = info
@@ -160,12 +176,12 @@ func query(ctx context.Context, resolve func() string, output io.Writer, opts Qu
 				if err == nil {
 					if identity != "" && identity != string(d.Identity) {
 						offset = 0
-						first = true
+						first = !opts.Follow
 					}
 					identity = string(d.Identity)
 					if stat, e := fp.Stat(); e == nil && stat.Size() < offset {
 						offset = 0
-						first = true
+						first = !opts.Follow
 					}
 					var blocks []archiveBlock
 					var end int64
@@ -175,7 +191,24 @@ func query(ctx context.Context, resolve func() string, output io.Writer, opts Qu
 					}
 					if end < offset {
 						offset = 0
-						first = true
+						first = !opts.Follow
+					}
+					// Data block snapshot precedes the second dictionary snapshot:
+					// writers persist dictionary additions before exposing data references.
+					if err == nil && len(blocks) > 0 {
+						latest, e := os.Stat(dictionaryPath(path))
+						if e != nil {
+							err = e
+						} else if latest.Size() != dictionaryInfo.Size() || !latest.ModTime().Equal(dictionaryInfo.ModTime()) {
+							d, err = loadDictionary(dictionaryPath(path), false)
+							if err == nil && string(d.Identity) != identity {
+								err = errors.New("log archive/dictionary identity changed during query")
+							}
+							if err == nil {
+								cachedDictionary = d
+								dictionaryInfo = latest
+							}
+						}
 					}
 					if err == nil {
 						var total int64
@@ -257,7 +290,7 @@ func queryPlain(ctx context.Context, fp *os.File, output io.Writer, opts QueryOp
 	}
 	if stat.Size() < offset {
 		offset = 0
-		first = true
+		first = !opts.Follow
 	}
 	if _, err = fp.Seek(offset, io.SeekStart); err != nil {
 		return offset, err
