@@ -54,6 +54,11 @@ func RunCommand(ctx context.Context, name string, args []string, input io.Reader
 			}
 			selected = true
 		case "-tail", "-head":
+			if arg == "-tail" && !selected && (i+1 >= len(args) || strings.HasPrefix(args[i+1], "-")) {
+				opts.Tail = 100
+				selected = true
+				continue
+			}
 			if selected || i+1 >= len(args) {
 				return errors.New("head/tail require one positive count")
 			}
